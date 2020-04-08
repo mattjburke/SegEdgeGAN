@@ -58,9 +58,13 @@ def single_gpu_train():
             seg_edges_gt = get_edges(g1_output, seg_gt)
             G2_loss = criterion_g(g2_output, seg_edges_gt)
 
-            edges_if_seg_perfect = get_edges(seg_gt, seg_gt)  # torch.zeroes faster, but don't know h, w, BATCHSIZE
+            # edges_if_seg_perfect = get_edges(seg_gt, seg_gt)  # torch.zeroes faster, but don't know h, w, BATCHSIZE
+            # we want the d2 loss to capture the higher-order properties of the edges (that they are connected units)
+            # this is done by comparing real (coherent parts) edges and fake (possibly fuzzy or scattered/inconsistent)
+            # the g1_output and original_image are just extra inputs to help line up edges, but the focus is on the edges.
+            # as in, given input, does the output look real? NOT given different inputs, does the output look real?
 
-            g2_gt_cat = torch.cat((original_image, seg_gt, edges_if_seg_perfect), 1)
+            g2_gt_cat = torch.cat((original_image, g1_output, seg_edges_gt), 1)
             g2_pred_cat = torch.cat((original_image, g1_output, g2_output), 1)
 
             prob_g2_gt = D2(g2_gt_cat).detach()
