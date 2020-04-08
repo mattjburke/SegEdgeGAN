@@ -2,45 +2,63 @@ import glob
 import os
 from PIL import Image
 import torchvision.transforms as transforms
-import torch.utils.data as DATA
+from torchvision.datasets import Cityscapes
+import torch
 
 
-def make_dataset():
-    dataset = []
-    original_img_rpath = './ISTD_Dataset/train/train_A'
-    shadow_mask_rpath = './ISTD_Dataset/train/train_B'
-    shadow_free_img_rpath = './ISTD_Dataset/train/train_C'
-    for img_path in glob.glob(os.path.join(original_img_rpath, '*.png')):
-        basename = os.path.basename(img_path)
-        original_img_path = os.path.join(original_img_rpath, basename)
-        shadow_mask_path = os.path.join(shadow_mask_rpath, basename)
-        shadow_free_img_path = os.path.join(shadow_free_img_rpath, basename)
-        #print(original_img_path, shadow_mask_path, shadow_free_img_path)
-        dataset.append([original_img_path, shadow_mask_path, shadow_free_img_path])
-    #print(dataset)
-    return dataset
+# def make_dataset():
+#     dataset = []
+#     original_img_rpath = './prepped/images_prepped_train'
+#     seg_mask_rpath = './prepped/annotations_prepped_train'
+#     for img_path in glob.glob(os.path.join(original_img_rpath, '*.jpg')):
+#         basename = os.path.basename(img_path)
+#         original_img_path = os.path.join(original_img_rpath, basename)
+#         basename = basename[:-3] + 'png'
+#         seg_mask_path = os.path.join(seg_mask_rpath, basename)
+#         # print(original_img_path, seg_mask_path)
+#         dataset.append([original_img_path, seg_mask_path])
+#     # print(dataset)
+#     return dataset
 
 
+# define transforms
+resize_pil = transforms.Resize((8, 16))
+to_t = transforms.ToTensor()
+to_resized_tensor = transforms.Compose([resize_pil, to_t])
+# to_pil = transforms.ToPILImage()
 
-class shadow_triplets_loader(DATA.Dataset):
-    def __init__(self):
-        super(shadow_triplets_loader, self).__init__()
-        self.train_set_path = make_dataset()
+
+def one_hot_transform(seg_tensor):
+    seg_tensor[:, :, :] *= 255  # seg array is floats = category/255
+    height = list(seg_tensor.shape)[1]
+    width = list(seg_tensor.shape)[2]
+    # 35 classes: 0-33 and -1
+    ret_tensor = torch.zeros(35, height, width)
+    for chan in range(0, 33):
+        ret_tensor[chan, :, :] = seg_tensor[0, :, :] == chan
+    ret_tensor[34, :, :] = seg_tensor[0, :, :] == -1
+    return ret_tensor
+
+
+class CityscapesLoader(torch.utils.data.Dataset):
+    # split must be 'train', 'test', or 'val'
+    def __init__(self, split):
+        super(CityscapesLoader, self).__init__()
+        self.tensors_dataset = Cityscapes(root='./data/cityscapes', split=split, mode='fine', target_type='semantic',
+                                          transform=to_resized_tensor, target_transform=to_resized_tensor)
 
     def __getitem__(self, item):
-        original_img_path, shadow_mask_path, shadow_free_img_path = self.train_set_path[item]
-        transform = transforms.ToTensor()
-        #print(original_img_path, shadow_mask_path, shadow_free_img_path)
-        original_img = Image.open(original_img_path)
-        shadow_mask = Image.open(shadow_mask_path)
-        shadow_free_img = Image.open(shadow_free_img_path)
-
-        original_img = transform(original_img.resize((256, 256)))
-        shadow_mask = transform(shadow_mask.resize((256, 256)))
-        shadow_free_img = transform(shadow_free_img.resize((256, 256)))
-
-        return original_img, shadow_mask, shadow_free_img
+        img, seg = self.tensors_dataset[item]
+        seg = one_hot_transform(seg)
+        return img, seg
 
     def __len__(self):
-        return len(self.train_set_path)
+        return len(self.tensors_dataset)
+
+
+# train_dataset = CityscapesLoader('train')
+# for i in range(0, 2):
+#     img, seg = train_dataset[i]
+#     print(img)
+#     print(seg[7])
 
