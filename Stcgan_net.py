@@ -59,8 +59,8 @@ class Generator_first(nn.Module):
             nn.ReLU()
         )
         self.convt11 = nn.Sequential(
-            nn.ConvTranspose2d(128, 1, 3, 1, 1),
-            nn.Tanh()
+            nn.ConvTranspose2d(128, 35, 3, 1, 1),
+            nn.Softmax()
         )
 
         self._initialize_weights()

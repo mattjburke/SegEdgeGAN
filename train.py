@@ -8,7 +8,7 @@ import os
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #hyperparam
-BATCH_SIZE = 1
+BATCH_SIZE = 5
 lambda1 = 5
 lambda2 = 0.1
 lambda3 = 0.1
@@ -95,13 +95,15 @@ def train_G1():
     # trains only G1 with CE loss, no discriminators
     train_dataset = CityscapesLoader('train')
     train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
+    val_dataset = CityscapesLoader('val')
+    val_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
 
     G1 = Generator_first().to(device)
 
     criterion_g = torch.nn.CELoss(size_average=False)
 
     optimizerg = torch.optim.Adam([{'params': G1.parameters()}], lr=0.001)
-    for epoch in range(100000):
+    for epoch in range(0, 100):
         for i, data in enumerate(train_data_loader):
             original_image, seg_gt = data
             original_image = original_image.to(device)
@@ -112,11 +114,25 @@ def train_G1():
             optimizerg.zero_grad()
             G1_loss.backward()
             optimizerg.step()
+            if i % 10 == 0:
+                print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(G1_loss)))
 
-            # if epoch % 100 == 99:
-            # save every epoch
-            generator1_model = os.path.join("model/generator1_%d.pkl" % epoch)
-            torch.save(G1.state_dict(), generator1_model)
+        # if epoch % 100 == 99:
+        # save every epoch
+        generator1_model = os.path.join("model/generator1_%d.pkl" % epoch)
+        torch.save(G1.state_dict(), generator1_model)
+
+        running_loss = 0
+        for i, data in enumerate(val_data_loader):
+            original_image, seg_gt = data
+            original_image = original_image.to(device)
+            seg_gt = seg_gt.to(device)
+            g1_output = G1(original_image)
+            G1_loss = criterion_g(g1_output, seg_gt)
+            running_loss += G1_loss.item()
+            if i % 10 == 0:
+                print('Epoch: %d | iter: %d | val loss: %.10f | running_loss: %.10f' % (epoch, i, float(G1_loss), float(running_loss)))
+
 
 
 def train_G1D1():
