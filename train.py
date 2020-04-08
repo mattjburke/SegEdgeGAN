@@ -1,4 +1,5 @@
 from image_loader import CityscapesLoader
+from image_loader import get_edges
 from Stcgan_net import *
 import torch
 import torch.utils.data as Data
@@ -29,43 +30,44 @@ def single_gpu_train():
     criterion_g = torch.nn.CrossEntropyLoss()
     optimizerd = torch.optim.Adam([
         {'params': D1.parameters()},
-        {'params': D2.parameters()}], lr=0.001)
+        {'params': D2.parameters()}], lr=0.001)  # does sharing parameters make sense?
     optimizerg = torch.optim.Adam([
         {'params': G1.parameters()},
-        {'params': G2.parameters()}], lr=0.001)
+        {'params': G2.parameters()}], lr=0.001)  # does sharing parameters make sense?
 
     for epoch in range(100000):
         for i, data in enumerate(train_data_loader):
-            original_image, shadow_mask, shadow_free_image = data
+            original_image, seg_gt = data
             original_image = original_image.to(device)
-            shadow_mask = shadow_mask.to(device)
-            shadow_free_image = shadow_free_image.to(device)
+            seg_gt = seg_gt.to(device)
+
 
             g1_output = G1(original_image)
-            g1 = torch.cat((original_image, g1_output), 1)
-            gt1 = torch.cat((original_image, shadow_mask), 1)
+            G1_loss = criterion_g(g1_output, seg_gt)
 
-            prob_gt1 = D1(gt1).detach()
-            prob_g1 = D1(g1)
+            g1_pred_cat = torch.cat((original_image, g1_output), 1)
+            g1_gt_cat = torch.cat((original_image, seg_gt), 1)
 
-            #D1_loss = -torch.mean(torch.log(prob_gt1) +  torch.log(1 - prob_g1))
-            #G1_loss = torch.mean(torch.log(shadow_mask - g1_output))
-            D1_loss = criterion_d(prob_g1, prob_gt1)
-            G1_loss = criterion_g(g1_output, shadow_mask)
+            prob_g1_gt = D1(g1_gt_cat).detach()  # what does detatch do? Prevents backpropogation occuring through new variable
+            prob_g1_pred = D1(g1_pred_cat)
+            D1_loss = criterion_d(prob_g1_pred, prob_g1_gt)  # correct? loss b/w predictions != loss b/w pred and correct label
 
-            g2_input = torch.cat((original_image, shadow_mask), 1)
+            # g2_input = torch.cat((original_image, shadow_mask), 1)
+            g2_input = g1_gt_cat
             g2_output = G2(g2_input)
+            seg_edges_gt = get_edges(g1_output, seg_gt)
+            G2_loss = criterion_g(g2_output, seg_edges_gt)
 
-            gt2 = torch.cat((original_image, shadow_mask, shadow_free_image), 1)
-            g2 = torch.cat((original_image, g1_output, g2_output), 1)
+            edges_if_seg_perfect = get_edges(seg_gt, seg_gt)  # torch.zeroes faster, but don't know h, w, BATCHSIZE
 
-            prob_gt2 = D2(gt2).detach()
-            prob_g2 = D2(g2)
+            g2_gt_cat = torch.cat((original_image, seg_gt, edges_if_seg_perfect), 1)
+            g2_pred_cat = torch.cat((original_image, g1_output, g2_output), 1)
 
-            #D2_loss = -torch.mean(torch.log(prob_gt2) + torch.log(1 - prob_g2))
-            #G2_loss = torch.mean(torch.log(shadow_free_image, g2_output))
-            D2_loss = criterion_d(prob_g2, prob_gt2)
-            G2_loss = criterion_g(g2_output, shadow_free_image)
+            prob_g2_gt = D2(g2_gt_cat).detach()
+            prob_g2_pred = D2(g2_pred_cat)
+
+            D2_loss = criterion_d(prob_g2_pred, prob_g2_gt)
+
 
             loss = G1_loss + lambda1 * G2_loss + lambda2 * D1_loss + lambda3 * D2_loss
             print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
@@ -104,7 +106,7 @@ def train_G1():
     # criterion_g = torch.nn.L1Loss(size_average=False)
     criterion_g = torch.nn.CrossEntropyLoss()
 
-    optimizerg = torch.optim.Adam([{'params': G1.parameters()}], lr=0.001)
+    optimizer_g = torch.optim.Adam([{'params': G1.parameters()}], lr=0.001)
     for epoch in range(0, 100):
         for i, data in enumerate(train_data_loader):
             original_image, seg_gt = data
@@ -113,9 +115,9 @@ def train_G1():
 
             g1_output = G1(original_image)
             G1_loss = criterion_g(g1_output, seg_gt)
-            optimizerg.zero_grad()
+            optimizer_g.zero_grad()
             G1_loss.backward()
-            optimizerg.step()
+            optimizer_g.step()
             if i % 10 == 0:
                 print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(G1_loss)))
 
@@ -148,8 +150,8 @@ def train_G1D1():
 
     criterion_g = torch.nn.CELoss(size_average=False)
     criterion_d = torch.nn.BCELoss(size_average=False)
-    optimizerg = torch.optim.Adam([{'params': G1.parameters()}], lr=0.001)
-    optimizerd = torch.optim.Adam([{'params': D1.parameters()}], lr=0.001)
+    optimizer_g = torch.optim.Adam([{'params': G1.parameters()}], lr=0.001)
+    optimizer_d = torch.optim.Adam([{'params': D1.parameters()}], lr=0.001)
 
     for epoch in range(100000):
         for i, data in enumerate(train_data_loader):
@@ -171,5 +173,6 @@ def train_G1D1_G2D2():
     # trains all
     train_dataset = CityscapesLoader('train')
     train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
+    # unnecessary method since single_gpu_train() trains all
 
 
