@@ -1,4 +1,4 @@
-from image_loader import *
+from image_loader import CityscapesLoader
 from Stcgan_net import *
 import torch
 import torch.utils.data as Data
@@ -8,15 +8,15 @@ import os
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 #hyperparam
-BATCH_SIZE=1
+BATCH_SIZE = 1
 lambda1 = 5
 lambda2 = 0.1
 lambda3 = 0.1
 
 
 def single_gpu_train():
-    dataset = shadow_triplets_loader()
-    data_loader = Data.DataLoader(dataset, batch_size=BATCH_SIZE)
+    train_dataset = CityscapesLoader('train')
+    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
 
     G1 = Generator_first().to(device)
     G2 = Generator_second().to(device)
@@ -34,7 +34,7 @@ def single_gpu_train():
         {'params': G2.parameters()}], lr=0.001)
 
     for epoch in range(100000):
-        for i, data in enumerate(data_loader):
+        for i, data in enumerate(train_data_loader):
             original_image, shadow_mask, shadow_free_image = data
             original_image = original_image.to(device)
             shadow_mask = shadow_mask.to(device)
@@ -88,5 +88,69 @@ def single_gpu_train():
             torch.save(D2.state_dict(), discriminator2_model)
 
 
-single_gpu_train()
+# single_gpu_train()
+
+
+def train_G1():
+    # trains only G1 with CE loss, no discriminators
+    train_dataset = CityscapesLoader('train')
+    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
+
+    G1 = Generator_first().to(device)
+
+    criterion_g = torch.nn.CELoss(size_average=False)
+
+    optimizerg = torch.optim.Adam([{'params': G1.parameters()}], lr=0.001)
+    for epoch in range(100000):
+        for i, data in enumerate(train_data_loader):
+            original_image, seg_gt = data
+            original_image = original_image.to(device)
+            seg_gt = seg_gt.to(device)
+
+            g1_output = G1(original_image)
+            G1_loss = criterion_g(g1_output, seg_gt)
+            optimizerg.zero_grad()
+            G1_loss.backward()
+            optimizerg.step()
+
+            # if epoch % 100 == 99:
+            # save every epoch
+            generator1_model = os.path.join("model/generator1_%d.pkl" % epoch)
+            torch.save(G1.state_dict(), generator1_model)
+
+
+def train_G1D1():
+    # trains G1 along with D1
+    train_dataset = CityscapesLoader('train')
+    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
+
+    G1 = Generator_first().to(device)
+    D1 = Discriminator_first().to(device)
+
+    criterion_g = torch.nn.CELoss(size_average=False)
+    criterion_d = torch.nn.BCELoss(size_average=False)
+    optimizerg = torch.optim.Adam([{'params': G1.parameters()}], lr=0.001)
+    optimizerd = torch.optim.Adam([{'params': D1.parameters()}], lr=0.001)
+
+    for epoch in range(100000):
+        for i, data in enumerate(train_data_loader):
+            original_image, seg_gt = data
+            original_image = original_image.to(device)
+            seg_gt = seg_gt.to(device)
+
+            g1_output = G1(original_image)
+            g1 = torch.cat((original_image, g1_output), 1)
+            gt1 = torch.cat((original_image, seg_gt), 1)
+
+            G1_loss = criterion_g(g1_output, seg_gt)
+            D1_loss = criterion_d(prob_g1, prob_gt1)
+
+
+
+
+def train_G1D1_G2D2():
+    # trains all
+    train_dataset = CityscapesLoader('train')
+    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
+
 
