@@ -50,6 +50,7 @@ class CityscapesLoader(torch.utils.data.Dataset):
     def __getitem__(self, item):
         img, seg = self.tensors_dataset[item]
         seg = one_hot_transform(seg)
+        seg = seg.long()
         return img, seg
 
     def __len__(self):
