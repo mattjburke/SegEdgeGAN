@@ -60,7 +60,7 @@ class Generator_first(nn.Module):
         )
         self.convt11 = nn.Sequential(
             nn.ConvTranspose2d(128, 35, 3, 1, 1),
-            nn.Softmax()
+            nn.Softmax()  # not nn.Tanh() since using one-hot encoded with multiple classes instead of 1 chan output
         )
 
         self._initialize_weights()
@@ -104,7 +104,7 @@ class Generator_second(nn.Module):
     def  __init__(self):
         super(Generator_second, self).__init__()
         self.conv0 = nn.Sequential(
-            nn.Conv2d(4, 64, 3, 1, 1),
+            nn.Conv2d(38, 64, 3, 1, 1),  # 3 color channels plus 35 seg category channels
             nn.LeakyReLU(),
         )
         self.conv1 = nn.Sequential(
@@ -157,8 +157,8 @@ class Generator_second(nn.Module):
             nn.ReLU()
         )
         self.convt11 = nn.Sequential(
-            nn.ConvTranspose2d(128, 3, 3, 1, 1),
-            nn.Tanh()
+            nn.ConvTranspose2d(128, 35, 3, 1, 1),  # edges tensor is same shape as segmentation map
+            nn.Softmax()  # not nn.Tanh()
         )
         self._initialize_weights()
 
@@ -202,7 +202,7 @@ class Discriminator_first(nn.Module):
     def __init__(self):
         super(Discriminator_first, self).__init__()
         self.feature = nn.Sequential(
-            nn.Conv2d(4, 64, 3, 1, 1),
+            nn.Conv2d(35, 64, 3, 1, 1),
             nn.LeakyReLU(),
             nn.Conv2d(64, 128, 3, 1, 1),
             nn.BatchNorm2d(128),
@@ -233,7 +233,7 @@ class Discriminator_second(nn.Module):
     def __init__(self):
         super(Discriminator_second, self).__init__()
         self.feature = nn.Sequential(
-            nn.Conv2d(7, 64, 3, 1, 1),
+            nn.Conv2d(73, 64, 3, 1, 1),  # 73 input chan needs more than 64 filters? Or are patterns just as simple?
             nn.LeakyReLU(),
             nn.Conv2d(64, 128, 3, 1, 1),
             nn.BatchNorm2d(128),

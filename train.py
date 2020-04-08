@@ -24,8 +24,9 @@ def single_gpu_train():
     D2 = Discriminator_second().to(device)
 
 
-    criterion1 = torch.nn.BCELoss(size_average=False)
-    criterion2 = torch.nn.L1Loss()
+    criterion_d = torch.nn.BCELoss(size_average=False)
+    # criterion_g = torch.nn.L1Loss()
+    criterion_g = torch.nn.CrossEntropyLoss()
     optimizerd = torch.optim.Adam([
         {'params': D1.parameters()},
         {'params': D2.parameters()}], lr=0.001)
@@ -49,8 +50,8 @@ def single_gpu_train():
 
             #D1_loss = -torch.mean(torch.log(prob_gt1) +  torch.log(1 - prob_g1))
             #G1_loss = torch.mean(torch.log(shadow_mask - g1_output))
-            D1_loss = criterion1(prob_g1, prob_gt1)
-            G1_loss = criterion2(g1_output, shadow_mask)
+            D1_loss = criterion_d(prob_g1, prob_gt1)
+            G1_loss = criterion_g(g1_output, shadow_mask)
 
             g2_input = torch.cat((original_image, shadow_mask), 1)
             g2_output = G2(g2_input)
@@ -63,8 +64,8 @@ def single_gpu_train():
 
             #D2_loss = -torch.mean(torch.log(prob_gt2) + torch.log(1 - prob_g2))
             #G2_loss = torch.mean(torch.log(shadow_free_image, g2_output))
-            D2_loss = criterion1(prob_g2, prob_gt2)
-            G2_loss = criterion2(g2_output, shadow_free_image)
+            D2_loss = criterion_d(prob_g2, prob_gt2)
+            G2_loss = criterion_g(g2_output, shadow_free_image)
 
             loss = G1_loss + lambda1 * G2_loss + lambda2 * D1_loss + lambda3 * D2_loss
             print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
@@ -100,7 +101,8 @@ def train_G1():
 
     G1 = Generator_first().to(device)
 
-    criterion_g = torch.nn.CELoss(size_average=False)
+    # criterion_g = torch.nn.L1Loss(size_average=False)
+    criterion_g = torch.nn.CrossEntropyLoss()
 
     optimizerg = torch.optim.Adam([{'params': G1.parameters()}], lr=0.001)
     for epoch in range(0, 100):
@@ -134,6 +136,7 @@ def train_G1():
                 print('Epoch: %d | iter: %d | val loss: %.10f | running_loss: %.10f' % (epoch, i, float(G1_loss), float(running_loss)))
 
 
+train_G1()
 
 def train_G1D1():
     # trains G1 along with D1
