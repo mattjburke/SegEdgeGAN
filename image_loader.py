@@ -21,10 +21,10 @@ def one_hot_transform(seg_tensor):
     width = list(seg_tensor.shape)[2]
     # 35 classes: 0-33 and -1
     ret_tensor = torch.zeros(35, height, width)
-    for chan in range(0, 33):
+    for chan in range(0, 34):
         ret_tensor[chan, :, :] = seg_tensor[0, :, :] == chan
-    ret_tensor[34, :, :] = ((seg_tensor[0, :, :] == -1) or (seg_tensor[0, :, :] == 34))
-    return seg_tensor
+    # ret_tensor[34, :, :] = ((seg_tensor[0, :, :] == -1) or (seg_tensor[0, :, :] == 34))
+    return ret_tensor
 
 
 class CityscapesLoader(torch.utils.data.Dataset):

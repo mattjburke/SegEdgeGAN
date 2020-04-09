@@ -202,7 +202,7 @@ class Discriminator_first(nn.Module):
     def __init__(self):
         super(Discriminator_first, self).__init__()
         self.feature = nn.Sequential(
-            nn.Conv2d(35, 64, 3, 1, 1),
+            nn.Conv2d(38, 64, 3, 1, 1),
             nn.LeakyReLU(),
             nn.Conv2d(64, 128, 3, 1, 1),
             nn.BatchNorm2d(128),
