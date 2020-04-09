@@ -36,7 +36,7 @@ class CityscapesLoader(torch.utils.data.Dataset):
 
     def __getitem__(self, item):
         img, seg = self.tensors_dataset[item]
-        seg = one_hot_transform(seg).squeeze(0)  # need to remove classes dimension
+        seg = one_hot_transform(seg)  # .squeeze(0)  # need to remove classes dimension for CrossEntropyLoss
         seg = seg.long()
         return img, seg
 

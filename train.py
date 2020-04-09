@@ -67,19 +67,28 @@ def single_gpu_train():
 
 
             g1_output = G1(original_image)
-            G1_loss = criterion_g_data(g1_output, seg_gt)  # L_data1(G1)
+            G1_loss = criterion_g_data(g1_output, seg_gt.squeeze(1))  # L_data1(G1)  # needs longs for seg_gt
             L_data1 = G1_loss
 
+            print('original_image', original_image.dtype, original_image.shape)
+            print('g1_output', g1_output.dtype, g1_output.shape)
+            print('seg_gt', seg_gt.dtype, seg_gt.shape)
             g1_pred_cat = torch.cat((original_image, g1_output), 1)
-            g1_gt_cat = torch.cat((original_image, seg_gt), 1)
+            g1_gt_cat = torch.cat((original_image, seg_gt.float()), 1)
 
             # prob_g1_gt = D1(g1_gt_cat).detach()  # what does detatch do? Prevents backpropogation occuring through new variable
+            print('g1_pred_cat', g1_pred_cat.dtype, g1_pred_cat.shape)
+            print('g1_gt_cat', g1_gt_cat.dtype, g1_gt_cat.shape)
             prob_g1_gt = D1(g1_gt_cat)
             prob_g1_pred = D1(g1_pred_cat)
+            print('prob_g1_gt', prob_g1_gt.dtype, prob_g1_gt.shape)
+            print('prob_g1_pred', prob_g1_pred.dtype, prob_g1_pred.shape)
             # D1_loss = criterion_d(prob_g1_pred, prob_g1_gt)  # correct? loss b/w predictions != loss b/w pred and correct label
 
             REAL_t = torch.full((BATCH_SIZE,), REAL, device=device)  # tensor of REAL labels
             FAKE_t = torch.full((BATCH_SIZE,), FAKE, device=device)  # tensor of FAKE labels
+            print('REAL_t', REAL_t.dtype, REAL_t.shape)
+            print('FAKE_t', FAKE_t.dtype, FAKE_t.shape)
 
             D1_loss = criterion_d(prob_g1_pred, FAKE_t) + criterion_d(prob_g1_gt, REAL_t)  # call loss.backward on both individually? or together is ok?
             G1_adv_loss = criterion_d(prob_g1_pred, REAL_t)
@@ -88,9 +97,12 @@ def single_gpu_train():
 
             # g2_input = torch.cat((original_image, shadow_mask), 1)
             g2_input = g1_gt_cat
+            print('g2_input', g2_input.dtype, g2_input.shape)
             g2_output = G2(g2_input)
+            print('g1_output', g1_output.dtype, g1_output.shape)
+            print('seg_gt', seg_gt.dtype, seg_gt.shape)
             seg_edges_gt = get_edges(g1_output, seg_gt)
-            G2_loss = criterion_g_data(g2_output, seg_edges_gt)  #L_data2(G2|G1)
+            G2_loss = criterion_g_data(g2_output, seg_edges_gt.squeeze(1))  #L_data2(G2|G1)
             L_data2 = G2_loss
 
             # edges_if_seg_perfect = get_edges(seg_gt, seg_gt)  # torch.zeroes faster, but don't know h, w, BATCHSIZE
