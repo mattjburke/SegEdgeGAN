@@ -4,6 +4,8 @@ from Stcgan_net import *
 import torch
 import torch.utils.data as Data
 import os
+import pandas as pd
+from datetime import datetime
 import random
 
 
@@ -38,6 +40,22 @@ def single_gpu_train():
     optimizer_g = torch.optim.Adam([
         {'params': G1.parameters()},
         {'params': G2.parameters()}], lr=0.001)  # does sharing parameters make sense?
+
+    # Lists to keep track of progress
+    img_seg_list = []
+    iters = 0
+    epochs = []
+    total_losses = []
+    L_data1_losses = []
+    L_data2_losses = []
+    L_cgan1_losses = []
+    D1_losses = []
+    G1_adv_losses = []
+    L_cgan2_losses = []
+    D2_losses = []
+    G2_adv_losses = []
+    time_begin = str(datetime.now()).replace(' ', '-')
+    path = '/work/LAS/jannesar-lab/mburke/SegEdgeGAN/'
 
     for epoch in range(100000):
         for i, data in enumerate(train_data_loader):
@@ -92,7 +110,7 @@ def single_gpu_train():
 
             # loss = G1_loss + lambda1 * G2_loss + lambda2 * D1_loss + lambda3 * D2_loss
             loss = L_data1 + lambda1 * L_data2 + lambda2 * L_cgan1 + lambda3 * L_cgan2
-            print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
+
             if epoch % 6 < 3:
                 optimizer_d.zero_grad()
                 loss.backward()  # only uses D1_loss and D2_loss?
@@ -102,18 +120,41 @@ def single_gpu_train():
                 loss.backward()
                 optimizer_g.step()
 
-        if epoch % 100 == 99:
-            generator1_model = os.path.join("model/generator1_%d.pkl" % epoch)
-            generator2_model = os.path.join("model/generator2_%d.pkl" % epoch)
-            discriminator1_model = os.path.join("model/discriminator1_%d.pkl" % epoch)
-            discriminator2_model = os.path.join("model/discriminator2_%d.pkl" % epoch)
+            if iters % 10 == 0:
+                print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
+                epochs.append(epoch)
+                total_losses.append(loss.item())
+                L_data1_losses.append(L_data1.item())
+                L_data2_losses.append(L_data2.item())
+                L_cgan1_losses.append(L_cgan1.item())
+                D1_losses.append(D1_loss.item())
+                G1_adv_losses.append(G1_adv_loss.item())
+                L_cgan2_losses.append(L_cgan2.item())
+                D2_losses.append(D2_loss.item())
+                G2_adv_losses.append(G2_adv_loss.item())
+            iters += 1
+
+        if epoch % 2 == 0:
+            generator1_model = os.path.join(path, "saved_models/generator1_%d.pkl" % epoch)
+            generator2_model = os.path.join(path, "saved_models/generator2_%d.pkl" % epoch)
+            discriminator1_model = os.path.join(path, "saved_models/discriminator1_%d.pkl" % epoch)
+            discriminator2_model = os.path.join(path, "saved_models/discriminator2_%d.pkl" % epoch)
             torch.save(G1.state_dict(), generator1_model)
             torch.save(G2.state_dict(), generator2_model)
             torch.save(D1.state_dict(), discriminator1_model)
             torch.save(D2.state_dict(), discriminator2_model)
 
+        if epoch % 5 == 0:
+            df = pd.DataFrame(list(zip(*[epochs, total_losses, L_data1_losses, L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses, D2_losses, G2_adv_losses]))).add_prefix('Col')
+            # [total_losses, L_data1_losses, L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses, D2_losses, G2_adv_losses]
+            filename = path + 'saved_losses/G1D1G2D2_e' + epoch + '_' + time_begin + '.csv'
+            print('saving to', filename)
+            df.to_csv(filename, index=False)
 
-# single_gpu_train()
+            print(df)
+
+
+single_gpu_train()
 
 
 def train_G1():

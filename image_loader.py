@@ -7,7 +7,7 @@ import torch
 
 
 # define transforms
-resize_pil = transforms.Resize((8, 16))
+resize_pil = transforms.Resize((256, 512))  # use 8, 16 to test
 to_t = transforms.ToTensor()
 to_resized_tensor = transforms.Compose([resize_pil, to_t])
 # to_pil = transforms.ToPILImage()
