@@ -10,11 +10,12 @@ import random
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# dtype = torch.cuda.FloatTensor
 REAL = 1
 FAKE = 0
 
 #hyperparam
-BATCH_SIZE = 5
+BATCH_SIZE = 1
 lambda1 = 5  #high due to L1Loss instead of BCELoss?
 lambda2 = 0.1
 lambda3 = 0.1
