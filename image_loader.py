@@ -6,21 +6,6 @@ from torchvision.datasets import Cityscapes
 import torch
 
 
-# def make_dataset():
-#     dataset = []
-#     original_img_rpath = './prepped/images_prepped_train'
-#     seg_mask_rpath = './prepped/annotations_prepped_train'
-#     for img_path in glob.glob(os.path.join(original_img_rpath, '*.jpg')):
-#         basename = os.path.basename(img_path)
-#         original_img_path = os.path.join(original_img_rpath, basename)
-#         basename = basename[:-3] + 'png'
-#         seg_mask_path = os.path.join(seg_mask_rpath, basename)
-#         # print(original_img_path, seg_mask_path)
-#         dataset.append([original_img_path, seg_mask_path])
-#     # print(dataset)
-#     return dataset
-
-
 # define transforms
 resize_pil = transforms.Resize((8, 16))
 to_t = transforms.ToTensor()
@@ -72,4 +57,16 @@ def get_edges(pred_seg, gt_seg):
     # remove negative values only
     edge_tensor = torch.nn.functional.relu(edge_tensor, inplace=False)  # inplace=True would be faster? default False
     return edge_tensor
+
+
+# need to change models' channel dimensions to use this instead
+def get_edges2(pred_seg, gt_seg):
+    edge_tensor = gt_seg - pred_seg
+    # remove negative values only
+    missed_edge_tensor = torch.nn.functional.relu(edge_tensor)
+    # flip negatives to positive, then get those values only
+    edge_tensor[:, :, :] *= -1
+    wrong_edge_tensor = torch.nn.functional.relu(edge_tensor)
+    ret_tensor = torch.cat([missed_edge_tensor, wrong_edge_tensor], 0)
+    return ret_tensor
 
