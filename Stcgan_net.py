@@ -60,7 +60,7 @@ class Generator_first(nn.Module):
         )
         self.convt11 = nn.Sequential(
             nn.ConvTranspose2d(128, 35, 3, 1, 1),
-            nn.Softmax()  # not nn.Tanh() since using one-hot encoded with multiple classes instead of 1 chan output
+            nn.Tanh()  # nn.Softmax(dim=1)  # not nn.Tanh() since using one-hot encoded with multiple classes instead of 1 chan output
         )
 
         self._initialize_weights()
@@ -158,7 +158,7 @@ class Generator_second(nn.Module):
         )
         self.convt11 = nn.Sequential(
             nn.ConvTranspose2d(128, 35, 3, 1, 1),  # edges tensor is same shape as segmentation map
-            nn.Softmax()  # not nn.Tanh()
+            nn.Tanh()  # nn.Softmax()  # not nn.Tanh()
         )
         self._initialize_weights()
 
