@@ -17,13 +17,13 @@ def one_hot_transform(seg_tensor):
     seg_tensor[:, :, :] *= 255  # seg array is floats = category/255
     # seg_tensor[seg_tensor[:, :, :] == -1] = 34
     # assume -1 is fitered out? I think this is handled by dataloader
-    # height = list(seg_tensor.shape)[1]
-    # width = list(seg_tensor.shape)[2]
-    # # 35 classes: 0-33 and -1
-    # ret_tensor = torch.zeros(35, height, width)
-    # for chan in range(0, 33):
-    #     ret_tensor[chan, :, :] = seg_tensor[0, :, :] == chan
-    # ret_tensor[34, :, :] = seg_tensor[0, :, :] == -1
+    height = list(seg_tensor.shape)[1]
+    width = list(seg_tensor.shape)[2]
+    # 35 classes: 0-33 and -1
+    ret_tensor = torch.zeros(35, height, width)
+    for chan in range(0, 33):
+        ret_tensor[chan, :, :] = seg_tensor[0, :, :] == chan
+    ret_tensor[34, :, :] = ((seg_tensor[0, :, :] == -1) or (seg_tensor[0, :, :] == 34))
     return seg_tensor
 
 
@@ -37,7 +37,7 @@ class CityscapesLoader(torch.utils.data.Dataset):
     def __getitem__(self, item):
         img, seg = self.tensors_dataset[item]
         seg = one_hot_transform(seg)  # .squeeze(0)  # need to remove classes dimension for CrossEntropyLoss
-        seg = seg.long()
+        # seg = seg.long()
         return img, seg
 
     def __len__(self):

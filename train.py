@@ -64,17 +64,20 @@ def single_gpu_train():
             original_image, seg_gt = data
             original_image = original_image.to(device)
             seg_gt = seg_gt.to(device)
+            seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long()
+            print('seg_gt', seg_gt.dtype, seg_gt.shape)
+            print('seg_gt_flat', seg_gt_flat.dtype, seg_gt_flat.shape)
 
 
             g1_output = G1(original_image)
-            G1_loss = criterion_g_data(g1_output, seg_gt.squeeze(1))  # L_data1(G1)  # needs longs for seg_gt
+            G1_loss = criterion_g_data(g1_output, seg_gt_flat)  # L_data1(G1)  # needs longs for seg_gt
             L_data1 = G1_loss
 
             print('original_image', original_image.dtype, original_image.shape)
             print('g1_output', g1_output.dtype, g1_output.shape)
             print('seg_gt', seg_gt.dtype, seg_gt.shape)
             g1_pred_cat = torch.cat((original_image, g1_output), 1)
-            g1_gt_cat = torch.cat((original_image, seg_gt.float()), 1)
+            g1_gt_cat = torch.cat((original_image, seg_gt), 1)  # seg_gt.float()
 
             # prob_g1_gt = D1(g1_gt_cat).detach()  # what does detatch do? Prevents backpropogation occuring through new variable
             print('g1_pred_cat', g1_pred_cat.dtype, g1_pred_cat.shape)
@@ -102,7 +105,8 @@ def single_gpu_train():
             print('g1_output', g1_output.dtype, g1_output.shape)
             print('seg_gt', seg_gt.dtype, seg_gt.shape)
             seg_edges_gt = get_edges(g1_output, seg_gt)
-            G2_loss = criterion_g_data(g2_output, seg_edges_gt.squeeze(1))  #L_data2(G2|G1)
+            seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long()
+            G2_loss = criterion_g_data(g2_output, seg_edges_gt_flat)  #L_data2(G2|G1)
             L_data2 = G2_loss
 
             # edges_if_seg_perfect = get_edges(seg_gt, seg_gt)  # torch.zeroes faster, but don't know h, w, BATCHSIZE
