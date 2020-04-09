@@ -33,7 +33,8 @@ def single_gpu_train():
 
     criterion_d = torch.nn.BCELoss()
     # criterion_g = torch.nn.L1Loss()
-    criterion_g_data = torch.nn.CrossEntropyLoss()
+    # criterion_g_data = torch.nn.CrossEntropyLoss()
+    criterion_g_data = torch.nn.NLLLoss()  # since CrossEntopyLoss includes softmax
     # criterion_g_adv = torch.nn.BCELoss()  # need separate criterion to carry loss only through Gs? No
     optimizer_d = torch.optim.Adam([
         {'params': D1.parameters()},
