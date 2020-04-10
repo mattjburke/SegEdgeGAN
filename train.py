@@ -162,10 +162,10 @@ def single_gpu_train():
             torch.save(D1.state_dict(), discriminator1_model)
             torch.save(D2.state_dict(), discriminator2_model)
 
-        if epoch % 5 == 0:
+        if epoch % 1 == 0:
             df = pd.DataFrame(list(zip(*[epochs, total_losses, L_data1_losses, L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses, D2_losses, G2_adv_losses]))).add_prefix('Col')
             # [total_losses, L_data1_losses, L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses, D2_losses, G2_adv_losses]
-            filename = path + 'saved_losses/G1D1G2D2_e' + epoch + '_' + time_begin + '.csv'
+            filename = path + 'saved_losses/G1D1G2D2_e' + str(epoch) + '_' + time_begin + '.csv'
             print('saving to', filename)
             df.to_csv(filename, index=False)
 
