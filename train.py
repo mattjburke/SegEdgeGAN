@@ -180,7 +180,7 @@ def single_gpu_train():
 
         # save losses and iou every epoch for graphing
         df = pd.DataFrame(list(zip(*[epochs, iou_scores, total_losses, L_data1_losses, L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses, D2_losses, G2_adv_losses]))).add_prefix('Col')
-        filename = path + 'saved_losses/G1D1G2D2_e' + str(epoch) + '_' + time_begin + '.csv'
+        filename = path + 'G1D1G2D2_e' + str(epoch) + '_' + time_begin + '.csv'
         print('saving to', filename)
         df.to_csv(filename, index=False)
         # print(df)
@@ -277,7 +277,7 @@ def single_gpu_train():
 
             # saves lists of average (per epoch) losses
             df = pd.DataFrame(list(zip(*[epochs, val_iou_scores, val_total_losses, val_L_data1_losses, val_L_data2_losses, val_L_cgan1_losses, val_D1_losses, val_G1_adv_losses, val_L_cgan2_losses, val_D2_losses, val_G2_adv_losses]))).add_prefix('Col')
-            filename = path + 'saved_losses/G1D1G2D2_val_e' + str(epoch) + '_' + time_begin + '.csv'
+            filename = path + 'G1D1G2D2_val_e' + str(epoch) + '_' + time_begin + '.csv'
             print('saving to', filename)
             df.to_csv(filename, index=False)
 
@@ -289,10 +289,10 @@ def single_gpu_train():
 
         # will use best model for test set
         if epoch > 5:
-            generator1_model = os.path.join(path, "saved_models/generator1_%d.pkl" % epoch)
-            generator2_model = os.path.join(path, "saved_models/generator2_%d.pkl" % epoch)
-            discriminator1_model = os.path.join(path, "saved_models/discriminator1_%d.pkl" % epoch)
-            discriminator2_model = os.path.join(path, "saved_models/discriminator2_%d.pkl" % epoch)
+            generator1_model = os.path.join(path, "generator1_%d.pkl" % epoch)
+            generator2_model = os.path.join(path, "generator2_%d.pkl" % epoch)
+            discriminator1_model = os.path.join(path, "discriminator1_%d.pkl" % epoch)
+            discriminator2_model = os.path.join(path, "discriminator2_%d.pkl" % epoch)
             torch.save(G1.state_dict(), generator1_model)
             torch.save(G2.state_dict(), generator2_model)
             torch.save(D1.state_dict(), discriminator1_model)
