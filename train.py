@@ -1,5 +1,4 @@
-from image_loader import CityscapesLoader
-from image_loader import get_edges
+from image_loader import CityscapesLoader, get_edges, iou
 from Stcgan_net import *
 import torch
 import torch.utils.data as Data
@@ -25,10 +24,18 @@ def single_gpu_train():
     train_dataset = CityscapesLoader('train')
     train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
 
+    val_dataset = CityscapesLoader('val')
+    val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE)
+
     G1 = Generator_first().to(device)
     G2 = Generator_second().to(device)
     D1 = Discriminator_first().to(device)
     D2 = Discriminator_second().to(device)
+
+    G1.train()
+    G2.train()
+    D1.train()
+    D2.train()
 
 
     criterion_d = torch.nn.BCELoss()
@@ -38,15 +45,16 @@ def single_gpu_train():
     # criterion_g_adv = torch.nn.BCELoss()  # need separate criterion to carry loss only through Gs? No
     optimizer_d = torch.optim.Adam([
         {'params': D1.parameters()},
-        {'params': D2.parameters()}], lr=0.001)  # does sharing parameters make sense?
+        {'params': D2.parameters()}], lr=0.001)  # model parameters not shared, but optimizer only updates these
     optimizer_g = torch.optim.Adam([
         {'params': G1.parameters()},
-        {'params': G2.parameters()}], lr=0.001)  # does sharing parameters make sense?
+        {'params': G2.parameters()}], lr=0.001)
 
     # Lists to keep track of progress
-    img_seg_list = []
+    img_seg_list = []  # store some samples to visually inspect progress
     iters = 0
     epochs = []
+    iou_scores = []
     total_losses = []
     L_data1_losses = []
     L_data2_losses = []
@@ -56,8 +64,20 @@ def single_gpu_train():
     L_cgan2_losses = []
     D2_losses = []
     G2_adv_losses = []
+
+    val_iou_scores = []
+    val_total_losses = []
+    val_L_data1_losses = []
+    val_L_data2_losses = []
+    val_L_cgan1_losses = []
+    val_D1_losses = []
+    val_G1_adv_losses = []
+    val_L_cgan2_losses = []
+    val_D2_losses = []
+    val_G2_adv_losses = []
+
     time_begin = str(datetime.now()).replace(' ', '-')
-    path = '/work/LAS/jannesar-lab/mburke/SegEdgeGAN/'
+    path = '/work/LAS/jannesar-lab/mburke/SegEdgeGAN/saved/' + time_begin + '/'
 
     for epoch in range(100000):
         for i, data in enumerate(train_data_loader):
@@ -72,6 +92,8 @@ def single_gpu_train():
             g1_output = G1(original_image)
             G1_loss = criterion_g_data(g1_output, seg_gt_flat)  # L_data1(G1)  # needs longs for seg_gt
             L_data1 = G1_loss
+
+            iou_score = iou(g1_output, seg_gt)
 
             # print('original_image', original_image.dtype, original_image.shape)
             # print('g1_output', g1_output.dtype, g1_output.shape)
@@ -138,10 +160,12 @@ def single_gpu_train():
                 loss.backward()
                 optimizer_g.step()
 
-            if iters % 10 == 0:
+            if iters % 25 == 0:
+                # loss on each item is good enough sample to graph, but could also add average loss for epoch
                 print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
                 epochs.append(epoch)
-                total_losses.append(loss.item())
+                iou_scores.append(iou_score)
+                total_losses.append(loss.item()) # or need to sum all loss.items in epoch / len(data_loader) ?
                 L_data1_losses.append(L_data1.item())
                 L_data2_losses.append(L_data2.item())
                 L_cgan1_losses.append(L_cgan1.item())
@@ -152,7 +176,117 @@ def single_gpu_train():
                 G2_adv_losses.append(G2_adv_loss.item())
             iters += 1
 
-        if epoch % 2 == 0:
+        # save losses and iou every epoch for graphing
+        df = pd.DataFrame(list(zip(*[epochs, iou_scores, total_losses, L_data1_losses, L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses, D2_losses, G2_adv_losses]))).add_prefix('Col')
+        filename = path + 'saved_losses/G1D1G2D2_e' + str(epoch) + '_' + time_begin + '.csv'
+        print('saving to', filename)
+        df.to_csv(filename, index=False)
+        # print(df)
+
+        # get validation set stats
+        with torch.no_grad():
+            G1.eval()
+            G2.eval()
+            D1.eval()
+            D2.eval()
+
+            run_val_iou_score = 0
+            run_val_loss = 0
+            run_val_L_data1 = 0
+            run_val_L_data2 = 0
+            run_val_L_cgan1 = 0
+            run_val_D1_loss = 0
+            run_val_G1_adv_loss = 0
+            run_val_L_cgan2 = 0
+            run_val_D2_loss = 0
+            run_val_G2_adv_loss = 0
+
+            # identical loop as above but with validation set and val_losses
+            for i, data in enumerate(val_data_loader):
+                original_image, seg_gt = data
+                original_image = original_image.to(device)
+                seg_gt = seg_gt.to(device)
+                seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long()
+
+                g1_output = G1(original_image)
+                val_G1_loss = criterion_g_data(g1_output, seg_gt_flat)
+                val_L_data1 = val_G1_loss
+
+                val_iou_score = iou(g1_output, seg_gt)
+
+                g1_pred_cat = torch.cat((original_image, g1_output), 1)
+                g1_gt_cat = torch.cat((original_image, seg_gt), 1)
+
+                prob_g1_gt = D1(g1_gt_cat)
+                prob_g1_pred = D1(g1_pred_cat)
+
+                REAL_t = torch.full((prob_g1_gt.shape), REAL, device=device)  # tensor of REAL labels
+                FAKE_t = torch.full((prob_g1_gt.shape), FAKE, device=device)  # tensor of FAKE labels
+
+                val_D1_loss = criterion_d(prob_g1_pred, FAKE_t) + criterion_d(prob_g1_gt, REAL_t)
+                val_G1_adv_loss = criterion_d(prob_g1_pred, REAL_t)
+                val_L_cgan1 = val_D1_loss + val_G1_adv_loss
+
+                g2_input = g1_gt_cat
+
+                g2_output = G2(g2_input)
+
+                seg_edges_gt = get_edges(g1_output, seg_gt)
+                seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long()
+                val_G2_loss = criterion_g_data(g2_output, seg_edges_gt_flat)  # L_data2(G2|G1)
+                val_L_data2 = val_G2_loss
+
+                g2_gt_cat = torch.cat((original_image, g1_output, seg_edges_gt), 1)
+                g2_pred_cat = torch.cat((original_image, g1_output, g2_output), 1)
+
+                prob_g2_gt = D2(g2_gt_cat)
+                prob_g2_pred = D2(g2_pred_cat)
+
+                val_D2_loss = criterion_d(prob_g2_pred, FAKE_t) + criterion_d(prob_g2_gt, REAL_t)
+                val_G2_adv_loss = criterion_d(prob_g2_pred, REAL_t)
+                val_L_cgan2 = val_D2_loss + val_G2_adv_loss
+
+                val_loss = val_L_data1 + lambda1 * val_L_data2 + lambda2 * val_L_cgan1 + lambda3 * val_L_cgan2
+
+                # add loss items to use in average for epoch
+                run_val_loss += val_loss.item()
+                run_val_iou_score += val_iou_score
+                run_val_loss += val_loss.item()  # or need to sum all loss.items in epoch / len(data_loader) ?
+                run_val_L_data1 += val_L_data1.item()
+                run_val_L_data2 += val_L_data2.item()
+                run_val_L_cgan1 += val_L_cgan1.item()
+                run_val_D1_loss += val_D1_loss.item()
+                run_val_G1_adv_loss += val_G1_adv_loss.item()
+                run_val_L_cgan2 += val_L_cgan2.item()
+                run_val_D2_loss += val_D2_loss.item()
+                run_val_G2_adv_loss += val_G2_adv_loss.item()
+
+            # add average losses to lists
+            val_iou_scores.append(run_val_iou_score/len(val_data_loader))
+            val_total_losses.append(run_val_loss/len(val_data_loader))
+            val_L_data1_losses.append(run_val_L_data1/len(val_data_loader))
+            val_L_data2_losses.append(run_val_L_data2/len(val_data_loader))
+            val_L_cgan1_losses.append(run_val_L_cgan1/len(val_data_loader))
+            val_D1_losses.append(run_val_D1_loss/len(val_data_loader))
+            val_G1_adv_losses.append(run_val_G1_adv_loss/len(val_data_loader))
+            val_L_cgan2_losses.append(run_val_L_cgan2/len(val_data_loader))
+            val_D2_losses.append(run_val_D2_loss/len(val_data_loader))
+            val_G2_adv_losses.append(run_val_G2_adv_loss/len(val_data_loader))
+
+            # saves lists of average (per epoch) losses
+            df = pd.DataFrame(list(zip(*[epochs, val_iou_scores, val_total_losses, val_L_data1_losses, val_L_data2_losses, val_L_cgan1_losses, val_D1_losses, val_G1_adv_losses, val_L_cgan2_losses, val_D2_losses, val_G2_adv_losses]))).add_prefix('Col')
+            filename = path + 'saved_losses/G1D1G2D2_val_e' + str(epoch) + '_' + time_begin + '.csv'
+            print('saving to', filename)
+            df.to_csv(filename, index=False)
+
+            # back to training mode
+            G1.train()
+            G2.train()
+            D1.train()
+            D2.train()
+
+        # will use best model for test set
+        if epoch > 5:
             generator1_model = os.path.join(path, "saved_models/generator1_%d.pkl" % epoch)
             generator2_model = os.path.join(path, "saved_models/generator2_%d.pkl" % epoch)
             discriminator1_model = os.path.join(path, "saved_models/discriminator1_%d.pkl" % epoch)
@@ -161,15 +295,6 @@ def single_gpu_train():
             torch.save(G2.state_dict(), generator2_model)
             torch.save(D1.state_dict(), discriminator1_model)
             torch.save(D2.state_dict(), discriminator2_model)
-
-        if epoch % 1 == 0:
-            df = pd.DataFrame(list(zip(*[epochs, total_losses, L_data1_losses, L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses, D2_losses, G2_adv_losses]))).add_prefix('Col')
-            # [total_losses, L_data1_losses, L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses, D2_losses, G2_adv_losses]
-            filename = path + 'saved_losses/G1D1G2D2_e' + str(epoch) + '_' + time_begin + '.csv'
-            print('saving to', filename)
-            df.to_csv(filename, index=False)
-
-            print(df)
 
 
 single_gpu_train()
@@ -219,7 +344,7 @@ def train_G1():
                 print('Epoch: %d | iter: %d | val loss: %.10f | running_loss: %.10f' % (epoch, i, float(G1_loss), float(running_loss)))
 
 
-train_G1()
+# train_G1()
 
 def train_G1D1():
     # trains G1 along with D1
