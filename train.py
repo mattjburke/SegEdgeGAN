@@ -78,6 +78,8 @@ def single_gpu_train():
 
     time_begin = str(datetime.now()).replace(' ', '-')
     path = '/work/LAS/jannesar-lab/mburke/SegEdgeGAN/saved/' + time_begin + '/'
+    os.mkdir(path)
+    print("beginning training at " + time_begin)
 
     for epoch in range(100000):
         for i, data in enumerate(train_data_loader):
@@ -295,6 +297,8 @@ def single_gpu_train():
             torch.save(G2.state_dict(), generator2_model)
             torch.save(D1.state_dict(), discriminator1_model)
             torch.save(D2.state_dict(), discriminator2_model)
+
+        print("finished epoch " + str(epoch) + " at " + str(datetime.now()))
 
 
 single_gpu_train()
