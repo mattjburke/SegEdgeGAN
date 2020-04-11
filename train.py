@@ -14,7 +14,7 @@ REAL = 1
 FAKE = 0
 
 #hyperparam
-BATCH_SIZE = 1
+BATCH_SIZE = 16  # 4 gpus to use in parallel
 lambda1 = 5  #high due to L1Loss instead of BCELoss?
 lambda2 = 0.1
 lambda3 = 0.1
@@ -134,7 +134,7 @@ def single_gpu_train():
                 original_image, seg_gt = data
                 original_image = original_image.to(device)
                 seg_gt = seg_gt.to(device)
-                seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long()  # needed for NLLLoss
+                seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long().to(device)  # needed for NLLLoss
 
                 # predict segmentation map with G1
                 g1_output = G1(original_image)
@@ -172,9 +172,9 @@ def single_gpu_train():
                 g2_output = G2(g1_pred_cat)
 
                 # find edges where G1 prediction does not match with ground truth
-                seg_edges_gt = get_edges(g1_output, seg_gt)
+                seg_edges_gt = get_edges(g1_output, seg_gt).to(device)  # to(device)? new tensor created outside of model
                 # reformat for BCELoss input
-                seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long()
+                seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long().to(device)
 
                 # measure how well G2 predicted edges
                 L_data2 = criterion_g_data(g2_output, seg_edges_gt_flat)  #L_data2(G2|G1)
