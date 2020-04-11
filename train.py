@@ -39,13 +39,11 @@ def single_gpu_train():
 
 
     criterion_d = torch.nn.BCELoss()
-    # criterion_g = torch.nn.L1Loss()
-    # criterion_g_data = torch.nn.CrossEntropyLoss()
     criterion_g_data = torch.nn.NLLLoss()  # since CrossEntopyLoss includes softmax
-    # criterion_g_adv = torch.nn.BCELoss()  # need separate criterion to carry loss only through Gs? No
+    # 2 optimizers used to update discriminators and generators in alternating fashion
     optimizer_d = torch.optim.Adam([
         {'params': D1.parameters()},
-        {'params': D2.parameters()}], lr=0.001)  # model parameters not shared, but optimizer only updates these
+        {'params': D2.parameters()}], lr=0.001)  # optimizer updates these parameters with step()
     optimizer_g = torch.optim.Adam([
         {'params': G1.parameters()},
         {'params': G2.parameters()}], lr=0.001)
@@ -84,80 +82,80 @@ def single_gpu_train():
 
     for epoch in range(100000):
         for i, data in enumerate(train_data_loader):
+            # get batch of data
             original_image, seg_gt = data
             original_image = original_image.to(device)
             seg_gt = seg_gt.to(device)
-            seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long()
-            # print('seg_gt', seg_gt.dtype, seg_gt.shape)
-            # print('seg_gt_flat', seg_gt_flat.dtype, seg_gt_flat.shape)
+            seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long()  # needed for NLLLoss
 
-
+            # predict segmentation map with G1
             g1_output = G1(original_image)
-            G1_loss = criterion_g_data(g1_output, seg_gt_flat)  # L_data1(G1)  # needs longs for seg_gt
-            L_data1 = G1_loss
+            # measures how well G1 predicted segmentation map
+            L_data1 = criterion_g_data(g1_output, seg_gt_flat)
 
-            iou_score = iou(g1_output, seg_gt)
+            # Intersection over Union is measure of segmentation map accuracy
+            iou_score = iou(g1_output, seg_gt)  # what we ultimately want to improve
 
-            # print('original_image', original_image.dtype, original_image.shape)
-            # print('g1_output', g1_output.dtype, g1_output.shape)
-            # print('seg_gt', seg_gt.dtype, seg_gt.shape)
-            g1_pred_cat = torch.cat((original_image, g1_output), 1)
-            g1_gt_cat = torch.cat((original_image, seg_gt), 1)  # seg_gt.float()
+            # prepare FAKE/generated and REAL/ground truth input for D1
+            g1_pred_cat = torch.cat((original_image, g1_output), 1)  # FAKE
+            g1_gt_cat = torch.cat((original_image, seg_gt), 1)  # REAL
 
-            # prob_g1_gt = D1(g1_gt_cat).detach()  # what does detatch do? Prevents backpropogation occuring through new variable
-            # print('g1_pred_cat', g1_pred_cat.dtype, g1_pred_cat.shape)
-            # print('g1_gt_cat', g1_gt_cat.dtype, g1_gt_cat.shape)
-            prob_g1_gt = D1(g1_gt_cat)
-            prob_g1_pred = D1(g1_pred_cat)
-            # print('prob_g1_gt', prob_g1_gt.dtype, prob_g1_gt.shape)
-            # print('prob_g1_pred', prob_g1_pred.dtype, prob_g1_pred.shape)
-            # D1_loss = criterion_d(prob_g1_pred, prob_g1_gt)  # correct? loss b/w predictions != loss b/w pred and correct label
+            # predict probability that input is FAKE or REAL with D1
+            prob_g1_gt = D1(g1_gt_cat)  # good D1 would predict REAL
+            prob_g1_pred = D1(g1_pred_cat)  # good D1 would predict FAKE
 
+            # get tensors of labels to compute loss for D1
             REAL_t = torch.full((prob_g1_gt.shape), REAL, device=device)  # tensor of REAL labels
             FAKE_t = torch.full((prob_g1_gt.shape), FAKE, device=device)  # tensor of FAKE labels
-            # print('REAL_t', REAL_t.dtype, REAL_t.shape)
-            # print('FAKE_t', FAKE_t.dtype, FAKE_t.shape)
 
-            D1_loss = criterion_d(prob_g1_pred, FAKE_t) + criterion_d(prob_g1_gt, REAL_t)  # call loss.backward on both individually? or together is ok?
+            # D1 tries to accurately predict FAKE or REAL (ing + seg), but this gets harder as G1 improves
+            D1_loss = criterion_d(prob_g1_pred, FAKE_t) + criterion_d(prob_g1_gt, REAL_t)
+
+            # G1 should produce output that D1 thinks is REAL. G1_adv_loss updates G1 params to improve G1
             G1_adv_loss = criterion_d(prob_g1_pred, REAL_t)
             # L_cgan(G1, D1) = D1_loss + G1_adv_loss
             L_cgan1 = D1_loss + G1_adv_loss
 
-            # g2_input = torch.cat((original_image, shadow_mask), 1)
-            g2_input = g1_gt_cat
-            # print('g2_input', g2_input.dtype, g2_input.shape)
-            g2_output = G2(g2_input)
-            # print('g1_output', g1_output.dtype, g1_output.shape)
-            # print('seg_gt', seg_gt.dtype, seg_gt.shape)
-            seg_edges_gt = get_edges(g1_output, seg_gt)
-            seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long()
-            G2_loss = criterion_g_data(g2_output, seg_edges_gt_flat)  #L_data2(G2|G1)
-            L_data2 = G2_loss
+            # g2_input = g1_gt_cat  # found mistake! Can't predict edges from gt since no overlap pattern
+            # g2_output = G2(g2_input)
 
-            # edges_if_seg_perfect = get_edges(seg_gt, seg_gt)  # torch.zeroes faster, but don't know h, w, BATCHSIZE
+            # G2 predicts edges where G1 prediction does not match with ground truth
+            # As G1 improves, edges get smaller, changing input to G2, but patterns to recognize are similar
+            g2_output = G2(g1_pred_cat)
+
+            # find edges where G1 prediction does not match with ground truth
+            seg_edges_gt = get_edges(g1_output, seg_gt)
+            # reformat for BCELoss input
+            seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long()
+
+            # measure how well G2 predicted edges
+            L_data2 = criterion_g_data(g2_output, seg_edges_gt_flat)  #L_data2(G2|G1)
+
             # we want the d2 loss to capture the higher-order properties of the edges (that they are connected units)
             # this is done by comparing real (coherent parts) edges and fake (possibly fuzzy or scattered/inconsistent)
-            # the g1_output and original_image are just extra inputs to help line up edges, but the focus is on the edges.
-            # as in, given input, does the output look real? NOT given different inputs, does the output look real?
+            # since L_data_2 loss alone may produce fuzzy/inconsistent parts
 
-            g2_gt_cat = torch.cat((original_image, g1_output, seg_edges_gt), 1)
-            g2_pred_cat = torch.cat((original_image, g1_output, g2_output), 1)
+            # prepare FAKE/(predicted by G2) and REAL/(as if G2 were perfect) input for D2
+            g2_gt_cat = torch.cat((g1_pred_cat, seg_edges_gt), 1)  # REAL
+            g2_pred_cat = torch.cat((g1_pred_cat, g2_output), 1)  # FAKE
 
-            # prob_g2_gt = D2(g2_gt_cat).detach()
-            prob_g2_gt = D2(g2_gt_cat)
-            prob_g2_pred = D2(g2_pred_cat)
-            # D2_loss = criterion_d(prob_g2_pred, prob_g2_gt)
+            # predict the probability that input is REAL or FAKE with D2
+            prob_g2_gt = D2(g2_gt_cat)  # good D2 would predict REAL
+            prob_g2_pred = D2(g2_pred_cat)  # good D2 would predict FAKE
+
+            # measure how well D2 predicts REAL or FAKE
             D2_loss = criterion_d(prob_g2_pred, FAKE_t) + criterion_d(prob_g2_gt, REAL_t)
+            # we want G2 to produce output that D2 thinks is REAL
             G2_adv_loss = criterion_d(prob_g2_pred, REAL_t)
             L_cgan2 = D2_loss + G2_adv_loss
 
-            # loss = G1_loss + lambda1 * G2_loss + lambda2 * D1_loss + lambda3 * D2_loss
+            # lambda1 = 5, lambda2 = 0.1, lambda3 = 0.1 in paper (set at top)
             loss = L_data1 + lambda1 * L_data2 + lambda2 * L_cgan1 + lambda3 * L_cgan2
 
             if epoch % 6 < 3:
-                optimizer_d.zero_grad()
-                loss.backward()  # only uses D1_loss and D2_loss?
-                optimizer_d.step()
+                optimizer_d.zero_grad()  # clears previous gradients (from previous loss.backward() calls)
+                loss.backward()  # computes derivatives of loss (aka gradients)
+                optimizer_d.step()  # adjusts model parameters based on gradients
             else:
                 optimizer_g.zero_grad()
                 loss.backward()
@@ -206,51 +204,75 @@ def single_gpu_train():
 
             # identical loop as above but with validation set and val_losses
             for i, data in enumerate(val_data_loader):
+                # get batch of data
                 original_image, seg_gt = data
                 original_image = original_image.to(device)
                 seg_gt = seg_gt.to(device)
-                seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long()
+                seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long()  # needed for NLLLoss
 
+                # predict segmentation map with G1
                 g1_output = G1(original_image)
-                val_G1_loss = criterion_g_data(g1_output, seg_gt_flat)
-                val_L_data1 = val_G1_loss
+                # measures how well G1 predicted segmentation map
+                L_data1 = criterion_g_data(g1_output, seg_gt_flat)
 
-                val_iou_score = iou(g1_output, seg_gt)
+                # Intersection over Union is measure of segmentation map accuracy
+                iou_score = iou(g1_output, seg_gt)  # what we ultimately want to improve
 
-                g1_pred_cat = torch.cat((original_image, g1_output), 1)
-                g1_gt_cat = torch.cat((original_image, seg_gt), 1)
+                # prepare FAKE/generated and REAL/ground truth input for D1
+                g1_pred_cat = torch.cat((original_image, g1_output), 1)  # FAKE
+                g1_gt_cat = torch.cat((original_image, seg_gt), 1)  # REAL
 
-                prob_g1_gt = D1(g1_gt_cat)
-                prob_g1_pred = D1(g1_pred_cat)
+                # predict probability that input is FAKE or REAL with D1
+                prob_g1_gt = D1(g1_gt_cat)  # good D1 would predict REAL
+                prob_g1_pred = D1(g1_pred_cat)  # good D1 would predict FAKE
 
+                # get tensors of labels to compute loss for D1
                 REAL_t = torch.full((prob_g1_gt.shape), REAL, device=device)  # tensor of REAL labels
                 FAKE_t = torch.full((prob_g1_gt.shape), FAKE, device=device)  # tensor of FAKE labels
 
-                val_D1_loss = criterion_d(prob_g1_pred, FAKE_t) + criterion_d(prob_g1_gt, REAL_t)
-                val_G1_adv_loss = criterion_d(prob_g1_pred, REAL_t)
-                val_L_cgan1 = val_D1_loss + val_G1_adv_loss
+                # D1 tries to accurately predict FAKE or REAL (ing + seg), but this gets harder as G1 improves
+                D1_loss = criterion_d(prob_g1_pred, FAKE_t) + criterion_d(prob_g1_gt, REAL_t)
 
-                g2_input = g1_gt_cat
+                # G1 should produce output that D1 thinks is REAL. G1_adv_loss updates G1 params to improve G1
+                G1_adv_loss = criterion_d(prob_g1_pred, REAL_t)
+                # L_cgan(G1, D1) = D1_loss + G1_adv_loss
+                L_cgan1 = D1_loss + G1_adv_loss
 
-                g2_output = G2(g2_input)
+                # g2_input = g1_gt_cat  # found mistake! Can't predict edges from gt since no overlap pattern
+                # g2_output = G2(g2_input)
 
+                # G2 predicts edges where G1 prediction does not match with ground truth
+                # As G1 improves, edges get smaller, changing input to G2, but patterns to recognize are similar
+                g2_output = G2(g1_pred_cat)
+
+                # find edges where G1 prediction does not match with ground truth
                 seg_edges_gt = get_edges(g1_output, seg_gt)
+                # reformat for BCELoss input
                 seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long()
-                val_G2_loss = criterion_g_data(g2_output, seg_edges_gt_flat)  # L_data2(G2|G1)
-                val_L_data2 = val_G2_loss
 
-                g2_gt_cat = torch.cat((original_image, g1_output, seg_edges_gt), 1)
-                g2_pred_cat = torch.cat((original_image, g1_output, g2_output), 1)
+                # measure how well G2 predicted edges
+                L_data2 = criterion_g_data(g2_output, seg_edges_gt_flat)  # L_data2(G2|G1)
 
-                prob_g2_gt = D2(g2_gt_cat)
-                prob_g2_pred = D2(g2_pred_cat)
+                # we want the d2 loss to capture the higher-order properties of the edges (that they are connected units)
+                # this is done by comparing real (coherent parts) edges and fake (possibly fuzzy or scattered/inconsistent)
+                # since L_data_2 loss alone may produce fuzzy/inconsistent parts
 
-                val_D2_loss = criterion_d(prob_g2_pred, FAKE_t) + criterion_d(prob_g2_gt, REAL_t)
-                val_G2_adv_loss = criterion_d(prob_g2_pred, REAL_t)
-                val_L_cgan2 = val_D2_loss + val_G2_adv_loss
+                # prepare FAKE/(predicted by G2) and REAL/(as if G2 were perfect) input for D2
+                g2_gt_cat = torch.cat((g1_pred_cat, seg_edges_gt), 1)  # REAL
+                g2_pred_cat = torch.cat((g1_pred_cat, g2_output), 1)  # FAKE
 
-                val_loss = val_L_data1 + lambda1 * val_L_data2 + lambda2 * val_L_cgan1 + lambda3 * val_L_cgan2
+                # predict the probability that input is REAL or FAKE with D2
+                prob_g2_gt = D2(g2_gt_cat)  # good D2 would predict REAL
+                prob_g2_pred = D2(g2_pred_cat)  # good D2 would predict FAKE
 
+                # measure how well D2 predicts REAL or FAKE
+                D2_loss = criterion_d(prob_g2_pred, FAKE_t) + criterion_d(prob_g2_gt, REAL_t)
+                # we want G2 to produce output that D2 thinks is REAL
+                G2_adv_loss = criterion_d(prob_g2_pred, REAL_t)
+                L_cgan2 = D2_loss + G2_adv_loss
+
+                # lambda1 = 5, lambda2 = 0.1, lambda3 = 0.1 in paper (set at top)
+                loss = L_data1 + lambda1 * L_data2 + lambda2 * L_cgan1 + lambda3 * L_cgan2
                 # add loss items to use in average for epoch
                 val_epoch = epoch
                 run_val_iou_score += val_iou_score
