@@ -266,16 +266,16 @@ def single_gpu_train():
                 # not important to gather samples every 25 iterations since networks not updating
                 # save averages per epoch
                 val_epochs.append(epoch)
-                val_iou_scores.append(run_val_iou_score / len(val_data_loader))
-                val_total_losses.append(run_val_loss / len(val_data_loader))
-                val_L_data1_losses.append(run_val_L_data1 / len(val_data_loader))
-                val_L_data2_losses.append(run_val_L_data2 / len(val_data_loader))
-                val_L_cgan1_losses.append(run_val_L_cgan1 / len(val_data_loader))
-                val_D1_losses.append(run_val_D1_loss / len(val_data_loader))
-                val_G1_adv_losses.append(run_val_G1_adv_loss / len(val_data_loader))
-                val_L_cgan2_losses.append(run_val_L_cgan2 / len(val_data_loader))
-                val_D2_losses.append(run_val_D2_loss / len(val_data_loader))
-                val_G2_adv_losses.append(run_val_G2_adv_loss / len(val_data_loader))
+                val_iou_scores.append(run_iou_score / len(val_data_loader))
+                val_total_losses.append(run_loss / len(val_data_loader))
+                val_L_data1_losses.append(run_L_data1 / len(val_data_loader))
+                val_L_data2_losses.append(run_L_data2 / len(val_data_loader))
+                val_L_cgan1_losses.append(run_L_cgan1 / len(val_data_loader))
+                val_D1_losses.append(run_D1_loss / len(val_data_loader))
+                val_G1_adv_losses.append(run_G1_adv_loss / len(val_data_loader))
+                val_L_cgan2_losses.append(run_L_cgan2 / len(val_data_loader))
+                val_D2_losses.append(run_D2_loss / len(val_data_loader))
+                val_G2_adv_losses.append(run_G2_adv_loss / len(val_data_loader))
 
                 # saves lists of average (per epoch) losses
                 df = pd.DataFrame(list(zip(
