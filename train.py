@@ -65,6 +65,7 @@ def single_gpu_train():
     D2_losses = []
     G2_adv_losses = []
 
+    val_epochs = []  # stores epoch # once, where epochs[] stores same epoch several times since 119 measuerements taken each epoch
     val_iou_scores = []
     val_total_losses = []
     val_L_data1_losses = []
@@ -167,7 +168,7 @@ def single_gpu_train():
                 print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
                 epochs.append(epoch)
                 iou_scores.append(iou_score)
-                total_losses.append(loss.item()) # or need to sum all loss.items in epoch / len(data_loader) ?
+                total_losses.append(loss.item())
                 L_data1_losses.append(L_data1.item())
                 L_data2_losses.append(L_data2.item())
                 L_cgan1_losses.append(L_cgan1.item())
@@ -251,7 +252,7 @@ def single_gpu_train():
                 val_loss = val_L_data1 + lambda1 * val_L_data2 + lambda2 * val_L_cgan1 + lambda3 * val_L_cgan2
 
                 # add loss items to use in average for epoch
-                run_val_loss += val_loss.item()
+                val_epoch = epoch
                 run_val_iou_score += val_iou_score
                 run_val_loss += val_loss.item()  # or need to sum all loss.items in epoch / len(data_loader) ?
                 run_val_L_data1 += val_L_data1.item()
@@ -263,7 +264,9 @@ def single_gpu_train():
                 run_val_D2_loss += val_D2_loss.item()
                 run_val_G2_adv_loss += val_G2_adv_loss.item()
 
+
             # add average losses to lists
+            val_epochs.append(val_epoch)
             val_iou_scores.append(run_val_iou_score/len(val_data_loader))
             val_total_losses.append(run_val_loss/len(val_data_loader))
             val_L_data1_losses.append(run_val_L_data1/len(val_data_loader))
@@ -276,7 +279,7 @@ def single_gpu_train():
             val_G2_adv_losses.append(run_val_G2_adv_loss/len(val_data_loader))
 
             # saves lists of average (per epoch) losses
-            df = pd.DataFrame(list(zip(*[epochs, val_iou_scores, val_total_losses, val_L_data1_losses, val_L_data2_losses, val_L_cgan1_losses, val_D1_losses, val_G1_adv_losses, val_L_cgan2_losses, val_D2_losses, val_G2_adv_losses]))).add_prefix('Col')
+            df = pd.DataFrame(list(zip(*[val_epochs, val_iou_scores, val_total_losses, val_L_data1_losses, val_L_data2_losses, val_L_cgan1_losses, val_D1_losses, val_G1_adv_losses, val_L_cgan2_losses, val_D2_losses, val_G2_adv_losses]))).add_prefix('Col')
             filename = path + 'G1D1G2D2_val_e' + str(epoch) + '_' + time_begin + '.csv'
             print('saving to', filename)
             df.to_csv(filename, index=False)
