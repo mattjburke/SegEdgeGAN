@@ -55,6 +55,8 @@ def single_gpu_train():
     epochs = []
     iou_scores = []
     total_losses = []
+    D_losses = []
+    G_losses = []
     L_data1_losses = []
     L_data2_losses = []
     L_cgan1_losses = []
@@ -68,6 +70,8 @@ def single_gpu_train():
     ave_epochs = []  # stores epoch # once, where epochs[] stores same epoch several times since 119 measuerements taken each epoch
     ave_iou_scores = []
     ave_total_losses = []
+    ave_D_losses = []
+    ave_G_losses = []
     ave_L_data1_losses = []
     ave_L_data2_losses = []
     ave_L_cgan1_losses = []
@@ -81,6 +85,8 @@ def single_gpu_train():
     val_epochs = []  # stores epoch # once, where epochs[] stores same epoch several times since 119 measuerements taken each epoch
     val_iou_scores = []
     val_total_losses = []
+    val_D_losses = []
+    val_G_losses = []
     val_L_data1_losses = []
     val_L_data2_losses = []
     val_L_cgan1_losses = []
@@ -112,6 +118,8 @@ def single_gpu_train():
 
             run_iou_score = 0
             run_loss = 0
+            run_D_loss = 0
+            run_G_loss = 0
             run_L_data1 = 0
             run_L_data2 = 0
             run_L_cgan1 = 0
@@ -192,9 +200,16 @@ def single_gpu_train():
                 # lambda1 = 5, lambda2 = 0.1, lambda3 = 0.1 in paper (set at top)
                 loss = L_data1 + lambda1 * L_data2 + lambda2 * L_cgan1 + lambda3 * L_cgan2
 
+                G_loss = L_data1 + lambda1 * L_data2 + lambda2 * G1_adv_loss + lambda3 * G2_adv_loss
+                D_loss = lambda2 * D1_loss + lambda3 * D2_loss
+
                 #val_epoch = epoch
                 run_iou_score += iou_score
                 run_loss += loss.item()  # or need to sum all loss.items in epoch / len(data_loader) ?
+
+                run_D_loss += D_loss.item()
+                run_G_loss += G_loss.item()
+
                 run_L_data1 += L_data1.item()
                 run_L_data2 += L_data2.item()
                 run_L_cgan1 += L_cgan1.item()
@@ -207,11 +222,13 @@ def single_gpu_train():
                 if mode == 'train':
                     if epoch % 6 < 3:
                         optimizer_d.zero_grad()  # clears previous gradients (from previous loss.backward() calls)
-                        loss.backward()  # computes derivatives of loss (aka gradients)
+                        # loss.backward()  # computes derivatives of loss (aka gradients)
+                        D_loss.backward()
                         optimizer_d.step()  # adjusts model parameters based on gradients
                     else:
                         optimizer_g.zero_grad()
-                        loss.backward()
+                        # loss.backward()
+                        G_loss.backward()
                         optimizer_g.step()
 
                     # store finer points for graphing training
@@ -221,6 +238,10 @@ def single_gpu_train():
                         epochs.append(epoch)
                         iou_scores.append(iou_score)
                         total_losses.append(loss.item())
+
+                        D_losses.append(D_loss.item())
+                        G_losses.append(G_loss.item())
+
                         L_data1_losses.append(L_data1.item())
                         L_data2_losses.append(L_data2.item())
                         L_cgan1_losses.append(L_cgan1.item())
@@ -244,6 +265,10 @@ def single_gpu_train():
                 ave_epochs.append(epoch)
                 ave_iou_scores.append(run_iou_score / len(train_data_loader))
                 ave_total_losses.append(run_loss / len(train_data_loader))
+
+                ave_D_losses.append(run_loss / len(train_data_loader))
+                ave_G_losses.append(run_loss / len(train_data_loader))
+
                 ave_L_data1_losses.append(run_L_data1 / len(train_data_loader))
                 ave_L_data2_losses.append(run_L_data2 / len(train_data_loader))
                 ave_L_cgan1_losses.append(run_L_cgan1 / len(train_data_loader))
@@ -268,6 +293,10 @@ def single_gpu_train():
                 val_epochs.append(epoch)
                 val_iou_scores.append(run_iou_score / len(val_data_loader))
                 val_total_losses.append(run_loss / len(val_data_loader))
+                
+                val_D_losses.append(run_D_loss / len(val_data_loader))
+                val_G_losses.append(run_G_loss / len(val_data_loader))
+
                 val_L_data1_losses.append(run_L_data1 / len(val_data_loader))
                 val_L_data2_losses.append(run_L_data2 / len(val_data_loader))
                 val_L_cgan1_losses.append(run_L_cgan1 / len(val_data_loader))
