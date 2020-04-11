@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 
-class Generator_first(nn.DataParallel):
+class Generator_first(nn.Module):
     def  __init__(self):
         super(Generator_first, self).__init__()
         self.conv0 = nn.Sequential(
@@ -100,7 +100,7 @@ class Generator_first(nn.DataParallel):
                 torch.nn.init.constant_(m.bias, 0.1)
 
 
-class Generator_second(nn.DataParallel):
+class Generator_second(nn.Module):
     def  __init__(self):
         super(Generator_second, self).__init__()
         self.conv0 = nn.Sequential(
@@ -198,7 +198,7 @@ class Generator_second(nn.DataParallel):
 
 
 
-class Discriminator_first(nn.DataParallel):
+class Discriminator_first(nn.Module):
     def __init__(self):
         super(Discriminator_first, self).__init__()
         self.feature = nn.Sequential(
@@ -229,7 +229,7 @@ class Discriminator_first(nn.DataParallel):
                 torch.nn.init.constant_(m.bias, 0.1)
 
 
-class Discriminator_second(nn.DataParallel):
+class Discriminator_second(nn.Module):
     def __init__(self):
         super(Discriminator_second, self).__init__()
         self.feature = nn.Sequential(

@@ -27,16 +27,10 @@ def single_gpu_train():
     val_dataset = CityscapesLoader('val')
     val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
-    G1 = Generator_first().to(device)
-    G2 = Generator_second().to(device)
-    D1 = Discriminator_first().to(device)
-    D2 = Discriminator_second().to(device)
-
-    G1.train()
-    G2.train()
-    D1.train()
-    D2.train()
-
+    G1 = nn.DataParallel(Generator_first())
+    G2 = nn.DataParallel(Generator_second())
+    D1 = nn.DataParallel(Discriminator_first())
+    D2 = nn.DataParallel(Discriminator_second())
 
     criterion_d = torch.nn.BCELoss()
     criterion_g_data = torch.nn.NLLLoss()  # since CrossEntopyLoss includes softmax
