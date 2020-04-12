@@ -14,7 +14,7 @@ REAL = 1
 FAKE = 0
 
 #hyperparam
-BATCH_SIZE = 16  # 4 gpus to use in parallel
+BATCH_SIZE = 12  # 4 gpus to use in parallel
 lambda1 = 5  #high due to L1Loss instead of BCELoss?
 lambda2 = 0.1
 lambda3 = 0.1
@@ -33,7 +33,7 @@ def single_gpu_train():
     D2 = nn.DataParallel(Discriminator_second())
 
     criterion_d = torch.nn.BCELoss()
-    criterion_g_data = torch.nn.NLLLoss()  # since CrossEntopyLoss includes softmax
+    criterion_g_data = torch.nn.NLLLoss()  # since CrossEntopyLoss includes log_softmax
     # 2 optimizers used to update discriminators and generators in alternating fashion
     optimizer_d = torch.optim.Adam([
         {'params': D1.parameters()},
@@ -133,7 +133,7 @@ def single_gpu_train():
                 # predict segmentation map with G1
                 g1_output = G1(original_image)
                 # measures how well G1 predicted segmentation map
-                L_data1 = criterion_g_data(g1_output, seg_gt_flat)
+                L_data1 = criterion_g_data(nn.log(g1_output), seg_gt_flat)  # log of softmax values produces input of [-inf, 0] for NLLoss
 
                 # Intersection over Union is measure of segmentation map accuracy
                 iou_score = iou(g1_output, seg_gt)  # what we ultimately want to improve
@@ -171,7 +171,7 @@ def single_gpu_train():
                 seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long().to(device)
 
                 # measure how well G2 predicted edges
-                L_data2 = criterion_g_data(g2_output, seg_edges_gt_flat)  #L_data2(G2|G1)
+                L_data2 = criterion_g_data(nn.log(g2_output), seg_edges_gt_flat)  #L_data2(G2|G1)
 
                 # we want the d2 loss to capture the higher-order properties of the edges (that they are connected units)
                 # this is done by comparing real (coherent parts) edges and fake (possibly fuzzy or scattered/inconsistent)
