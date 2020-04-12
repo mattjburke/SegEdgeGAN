@@ -8,8 +8,8 @@ from datetime import datetime
 import random
 
 
-device0 = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-device1 = torch.device("cuda:1")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device1 = torch.device("cuda:1")
 # dtype = torch.cuda.FloatTensor
 REAL = 1
 FAKE = 0
@@ -28,10 +28,10 @@ def single_gpu_train():
     val_dataset = CityscapesLoader('val')
     val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
-    G1 = Generator_first().cuda(0)  # nn.DataParallel? use parllel.DistributedDataParallel?
-    G2 = Generator_second().cuda(0)
-    D1 = Discriminator_first().cuda(1)
-    D2 = Discriminator_second().cuda(1)
+    G1 = Generator_first().to(device)  # .cuda(0)  # nn.DataParallel? use parllel.DistributedDataParallel?
+    G2 = Generator_second().to(device)  # .cuda(0)
+    D1 = Discriminator_first().to(device)  # .cuda(1)
+    D2 = Discriminator_second().to(device)  # .cuda(1)
     criterion_d = torch.nn.BCELoss()
     criterion_g_data = torch.nn.NLLLoss()  # since CrossEntopyLoss includes log_softmax
     # 2 optimizers used to update discriminators and generators in alternating fashion
@@ -126,9 +126,9 @@ def single_gpu_train():
             for i, data in enumerate(data_loader):
                 # get batch of data
                 original_image, seg_gt = data
-                original_image = original_image.to(device0)
-                seg_gt = seg_gt.to(device0)
-                seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long().to(device0)  # needed for NLLLoss
+                original_image = original_image.to(device)
+                seg_gt = seg_gt.to(device)
+                seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long().to(device)  # needed for NLLLoss
 
                 # predict segmentation map with G1
                 g1_output = G1(original_image)
@@ -139,16 +139,16 @@ def single_gpu_train():
                 iou_score = iou(g1_output, seg_gt)  # what we ultimately want to improve
 
                 # prepare FAKE/generated and REAL/ground truth input for D1
-                g1_pred_cat = torch.cat((original_image, g1_output), 1).to(device1)  # FAKE
-                g1_gt_cat = torch.cat((original_image, seg_gt), 1).to(device1)  # REAL
+                g1_pred_cat = torch.cat((original_image, g1_output), 1).to(device)  # FAKE
+                g1_gt_cat = torch.cat((original_image, seg_gt), 1).to(device)  # REAL
 
                 # predict probability that input is FAKE or REAL with D1
                 prob_g1_gt = D1(g1_gt_cat)  # good D1 would predict REAL
                 prob_g1_pred = D1(g1_pred_cat)  # good D1 would predict FAKE
 
                 # get tensors of labels to compute loss for D1
-                REAL_t = torch.full((prob_g1_gt.shape), REAL, device=device1)  # tensor of REAL labels
-                FAKE_t = torch.full((prob_g1_gt.shape), FAKE, device=device1)  # tensor of FAKE labels
+                REAL_t = torch.full((prob_g1_gt.shape), REAL, device=device)  # tensor of REAL labels
+                FAKE_t = torch.full((prob_g1_gt.shape), FAKE, device=device)  # tensor of FAKE labels
 
                 # D1 tries to accurately predict FAKE or REAL (ing + seg), but this gets harder as G1 improves
                 D1_loss = criterion_d(prob_g1_pred, FAKE_t) + criterion_d(prob_g1_gt, REAL_t)
@@ -163,12 +163,12 @@ def single_gpu_train():
 
                 # G2 predicts edges where G1 prediction does not match with ground truth
                 # As G1 improves, edges get smaller, changing input to G2, but patterns to recognize are similar
-                g2_output = G2(g1_pred_cat.to(device0))
+                g2_output = G2(g1_pred_cat.to(device))
 
                 # find edges where G1 prediction does not match with ground truth
-                seg_edges_gt = get_edges(g1_output, seg_gt).to(device0)  # to(device)? new tensor created outside of model
+                seg_edges_gt = get_edges(g1_output, seg_gt).to(device)  # to(device)? new tensor created outside of model
                 # reformat for BCELoss input
-                seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long().to(device0)
+                seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long().to(device)
 
                 # measure how well G2 predicted edges
                 L_data2 = criterion_g_data(torch.log(g2_output), seg_edges_gt_flat)  #L_data2(G2|G1)
@@ -178,8 +178,8 @@ def single_gpu_train():
                 # since L_data_2 loss alone may produce fuzzy/inconsistent parts
 
                 # prepare FAKE/(predicted by G2) and REAL/(as if G2 were perfect) input for D2
-                g2_gt_cat = torch.cat((g1_pred_cat, seg_edges_gt), 1).to(device1)  # REAL
-                g2_pred_cat = torch.cat((g1_pred_cat, g2_output), 1).to(device1)  # FAKE
+                g2_gt_cat = torch.cat((g1_pred_cat, seg_edges_gt), 1).to(device)  # REAL
+                g2_pred_cat = torch.cat((g1_pred_cat, g2_output), 1).to(device)  # FAKE
 
                 # predict the probability that input is REAL or FAKE with D2
                 prob_g2_gt = D2(g2_gt_cat)  # good D2 would predict REAL
