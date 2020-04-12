@@ -86,7 +86,11 @@ def iou(outputs: torch.Tensor, labels: torch.Tensor):
     intersection = (outputs & labels).float().sum((2, 3))  # Will be zero if Truth=0 or Prediction=0
     union = (outputs | labels).float().sum((2, 3))  # Will be zzero if both are 0
     iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
+    del(outputs)
+    del(labels)
     # iou is score for every class in every batch
     # thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
-    return iou.mean().item()  # Or thresholded.mean() if you are interested in average across the batch
+    ret = iou.mean().item()
+    del iou
+    return ret  # Or thresholded.mean() if you are interested in average across the batch
 

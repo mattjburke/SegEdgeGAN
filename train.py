@@ -43,22 +43,22 @@ def single_gpu_train():
         {'params': G2.parameters()}], lr=0.001)
 
     # Lists to keep track of progress
-    img_seg_list = []  # store some samples to visually inspect progress
-    iters = 0
+    # img_seg_list = []  # store some samples to visually inspect progress
+    # iters = 0
     # stores sample every 25 iterations during training
-    epochs = []
-    iou_scores = []
-    total_losses = []
-    D_losses = []
-    G_losses = []
-    L_data1_losses = []
-    L_data2_losses = []
-    L_cgan1_losses = []
-    D1_losses = []
-    G1_adv_losses = []
-    L_cgan2_losses = []
-    D2_losses = []
-    G2_adv_losses = []
+    # epochs = []
+    # iou_scores = []
+    # total_losses = []
+    # D_losses = []
+    # G_losses = []
+    # L_data1_losses = []
+    # L_data2_losses = []
+    # L_cgan1_losses = []
+    # D1_losses = []
+    # G1_adv_losses = []
+    # L_cgan2_losses = []
+    # D2_losses = []
+    # G2_adv_losses = []
 
     # stores average of metrics for each epoch during training
     ave_epochs = []  # stores epoch # once, where epochs[] stores same epoch several times since 119 measuerements taken each epoch
@@ -134,6 +134,7 @@ def single_gpu_train():
                 g1_output = G1(original_image)
                 # measures how well G1 predicted segmentation map
                 L_data1 = criterion_g_data(torch.log(g1_output), seg_gt_flat)  # log of softmax values produces input of [-inf, 0] for NLLoss
+                del(seg_gt_flat)
 
                 # Intersection over Union is measure of segmentation map accuracy
                 iou_score = iou(g1_output, seg_gt)  # what we ultimately want to improve
@@ -141,6 +142,7 @@ def single_gpu_train():
                 # prepare FAKE/generated and REAL/ground truth input for D1
                 g1_pred_cat = torch.cat((original_image, g1_output), 1).to(device)  # FAKE
                 g1_gt_cat = torch.cat((original_image, seg_gt), 1).to(device)  # REAL
+                del(original_image)
 
                 # predict probability that input is FAKE or REAL with D1
                 prob_g1_gt = D1(g1_gt_cat)  # good D1 would predict REAL
@@ -152,9 +154,11 @@ def single_gpu_train():
 
                 # D1 tries to accurately predict FAKE or REAL (ing + seg), but this gets harder as G1 improves
                 D1_loss = criterion_d(prob_g1_pred, FAKE_t) + criterion_d(prob_g1_gt, REAL_t)
+                del(prob_g1_gt)
 
                 # G1 should produce output that D1 thinks is REAL. G1_adv_loss updates G1 params to improve G1
                 G1_adv_loss = criterion_d(prob_g1_pred, REAL_t)
+                del(prob_g1_pred)
                 # L_cgan(G1, D1) = D1_loss + G1_adv_loss
                 L_cgan1 = D1_loss + G1_adv_loss
 
@@ -167,11 +171,14 @@ def single_gpu_train():
 
                 # find edges where G1 prediction does not match with ground truth
                 seg_edges_gt = get_edges(g1_output, seg_gt).to(device)  # to(device)? new tensor created outside of model
+                del (seg_gt)
+                del (g1_output)
                 # reformat for BCELoss input
                 seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long().to(device)
 
                 # measure how well G2 predicted edges
                 L_data2 = criterion_g_data(torch.log(g2_output), seg_edges_gt_flat)  #L_data2(G2|G1)
+                del(seg_edges_gt_flat)
 
                 # we want the d2 loss to capture the higher-order properties of the edges (that they are connected units)
                 # this is done by comparing real (coherent parts) edges and fake (possibly fuzzy or scattered/inconsistent)
@@ -189,6 +196,10 @@ def single_gpu_train():
                 D2_loss = criterion_d(prob_g2_pred, FAKE_t) + criterion_d(prob_g2_gt, REAL_t)
                 # we want G2 to produce output that D2 thinks is REAL
                 G2_adv_loss = criterion_d(prob_g2_pred, REAL_t)
+                del(prob_g2_pred)
+                del(prob_g2_gt)
+                del(FAKE_t)
+                del(REAL_t)
                 L_cgan2 = D2_loss + G2_adv_loss
 
                 # lambda1 = 5, lambda2 = 0.1, lambda3 = 0.1 in paper (set at top)
@@ -198,7 +209,8 @@ def single_gpu_train():
                 D_loss = lambda2 * D1_loss + lambda3 * D2_loss
 
                 #val_epoch = epoch
-                run_iou_score += iou_score
+                run_iou_score += iou_score.item()  # not sure why this would be needed
+                del(iou_score)
                 run_loss += loss.item()  # or need to sum all loss.items in epoch / len(data_loader) ?
 
                 run_D_loss += D_loss.item()
@@ -228,36 +240,36 @@ def single_gpu_train():
                         optimizer_g.step()
 
                     # store finer points for graphing training
-                    if iters % 25 == 0:
-                        # loss on each item is good enough sample to graph, but could also add average loss for epoch
-                        print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
-                        epochs.append(epoch)
-                        iou_scores.append(iou_score)
-                        total_losses.append(loss.item())
-
-                        D_losses.append(D_loss.item())
-                        G_losses.append(G_loss.item())
-
-                        L_data1_losses.append(L_data1.item())
-                        L_data2_losses.append(L_data2.item())
-                        L_cgan1_losses.append(L_cgan1.item())
-                        D1_losses.append(D1_loss.item())
-                        G1_adv_losses.append(G1_adv_loss.item())
-                        L_cgan2_losses.append(L_cgan2.item())
-                        D2_losses.append(D2_loss.item())
-                        G2_adv_losses.append(G2_adv_loss.item())
-                    iters += 1
+                    # if iters % 25 == 0:
+                    #     # loss on each item is good enough sample to graph, but could also add average loss for epoch
+                    #     print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
+                    #     epochs.append(epoch)
+                    #     iou_scores.append(iou_score)
+                    #     total_losses.append(loss.item())
+                    #
+                    #     D_losses.append(D_loss.item())
+                    #     G_losses.append(G_loss.item())
+                    #
+                    #     L_data1_losses.append(L_data1.item())
+                    #     L_data2_losses.append(L_data2.item())
+                    #     L_cgan1_losses.append(L_cgan1.item())
+                    #     D1_losses.append(D1_loss.item())
+                    #     G1_adv_losses.append(G1_adv_loss.item())
+                    #     L_cgan2_losses.append(L_cgan2.item())
+                    #     D2_losses.append(D2_loss.item())
+                    #     G2_adv_losses.append(G2_adv_loss.item())
+                    # iters += 1
 
             # we've completed one epoch
             # save losses and iou every epoch for graphing
             if mode == 'train':
                 # save every 25 iterations points
-                df = pd.DataFrame(list(zip(*[epochs, iou_scores, total_losses, D_losses, G_losses, L_data1_losses,
-                                             L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses,
-                                             D2_losses, G2_adv_losses]))).add_prefix('Col')
-                filename = path + 'G1D1G2D2_e' + str(epoch) + '_' + time_begin + '.csv'
-                print('saving to', filename)
-                df.to_csv(filename, index=False)
+                # df = pd.DataFrame(list(zip(*[epochs, iou_scores, total_losses, D_losses, G_losses, L_data1_losses,
+                #                              L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses,
+                #                              D2_losses, G2_adv_losses]))).add_prefix('Col')
+                # filename = path + 'G1D1G2D2_e' + str(epoch) + '_' + time_begin + '.csv'
+                # print('saving to', filename)
+                # df.to_csv(filename, index=False)
 
                 # save averages per epoch
                 ave_epochs.append(epoch)
