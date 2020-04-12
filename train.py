@@ -98,12 +98,14 @@ def single_gpu_train():
     for epoch in range(100000):
         for mode in ['train', 'val']:
             if mode == 'train':
+                torch.set_grad_enabled(True)
                 data_loader = train_data_loader
                 G1.train()
                 G2.train()
                 D1.train()
                 D2.train()
             elif mode == 'val':
+                torch.set_grad_enabled(False)
                 data_loader = val_data_loader
                 G1.eval()
                 G2.eval()
@@ -209,13 +211,11 @@ def single_gpu_train():
                 D_loss = lambda2 * D1_loss + lambda3 * D2_loss
 
                 #val_epoch = epoch
-                run_iou_score += iou_score.item()  # not sure why this would be needed
+                run_iou_score += iou_score
                 del(iou_score)
                 run_loss += loss.item()  # or need to sum all loss.items in epoch / len(data_loader) ?
-
                 run_D_loss += D_loss.item()
                 run_G_loss += G_loss.item()
-
                 run_L_data1 += L_data1.item()
                 run_L_data2 += L_data2.item()
                 run_L_cgan1 += L_cgan1.item()
@@ -275,10 +275,8 @@ def single_gpu_train():
                 ave_epochs.append(epoch)
                 ave_iou_scores.append(run_iou_score / len(train_data_loader))
                 ave_total_losses.append(run_loss / len(train_data_loader))
-
                 ave_D_losses.append(run_loss / len(train_data_loader))
                 ave_G_losses.append(run_loss / len(train_data_loader))
-
                 ave_L_data1_losses.append(run_L_data1 / len(train_data_loader))
                 ave_L_data2_losses.append(run_L_data2 / len(train_data_loader))
                 ave_L_cgan1_losses.append(run_L_cgan1 / len(train_data_loader))
@@ -296,6 +294,7 @@ def single_gpu_train():
                 filename = path + 'G1D1G2D2_ave_e' + str(epoch) + '_' + time_begin + '.csv'
                 print('saving to', filename)
                 df.to_csv(filename, index=False)
+                del(df)
 
             elif mode == 'val':
                 # not important to gather samples every 25 iterations since networks not updating
@@ -324,6 +323,7 @@ def single_gpu_train():
                 filename = path + 'G1D1G2D2_val_e' + str(epoch) + '_' + time_begin + '.csv'
                 print('saving to', filename)
                 df.to_csv(filename, index=False)
+                del(df)
 
         # will use best model for test set
         # outside of modes since only needs to be done once per epoch
