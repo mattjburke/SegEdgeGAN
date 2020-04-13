@@ -44,24 +44,39 @@ def single_gpu_train():
 
     # Lists to keep track of progress
     # img_seg_list = []  # store some samples to visually inspect progress
-    # iters = 0
-    # stores sample every 25 iterations during training
-    # epochs = []
-    # iou_scores = []
-    # total_losses = []
-    # D_losses = []
-    # G_losses = []
-    # L_data1_losses = []
-    # L_data2_losses = []
-    # L_cgan1_losses = []
-    # D1_losses = []
-    # G1_adv_losses = []
-    # L_cgan2_losses = []
-    # D2_losses = []
-    # G2_adv_losses = []
+
+    # store sample every 25 iterations
+    iters = 0
+    epochs = []
+    iou_scores = []
+    total_losses = []
+    D_losses = []
+    G_losses = []
+    L_data1_losses = []
+    L_data2_losses = []
+    L_cgan1_losses = []
+    D1_losses = []
+    G1_adv_losses = []
+    L_cgan2_losses = []
+    D2_losses = []
+    G2_adv_losses = []
+
+    val_epochs = []
+    val_iou_scores = []
+    val_total_losses = []
+    val_D_losses = []
+    val_G_losses = []
+    val_L_data1_losses = []
+    val_L_data2_losses = []
+    val_L_cgan1_losses = []
+    val_D1_losses = []
+    val_G1_adv_losses = []
+    val_L_cgan2_losses = []
+    val_D2_losses = []
+    val_G2_adv_losses = []
 
     # stores average of metrics for each epoch during training
-    ave_epochs = []  # stores epoch # once, where epochs[] stores same epoch several times since 119 measuerements taken each epoch
+    ave_epochs = []  # stores epoch # once, where epochs[] stores same epoch several times
     ave_iou_scores = []
     ave_total_losses = []
     ave_D_losses = []
@@ -75,20 +90,20 @@ def single_gpu_train():
     ave_D2_losses = []
     ave_G2_adv_losses = []
 
-    # stores average of metrics during each validation epoch
-    val_epochs = []  # stores epoch # once, where epochs[] stores same epoch several times since 119 measuerements taken each epoch
-    val_iou_scores = []
-    val_total_losses = []
-    val_D_losses = []
-    val_G_losses = []
-    val_L_data1_losses = []
-    val_L_data2_losses = []
-    val_L_cgan1_losses = []
-    val_D1_losses = []
-    val_G1_adv_losses = []
-    val_L_cgan2_losses = []
-    val_D2_losses = []
-    val_G2_adv_losses = []
+    val_ave_epochs = []
+    val_ave_iou_scores = []
+    val_ave_total_losses = []
+    val_ave_D_losses = []
+    val_ave_G_losses = []
+    val_ave_L_data1_losses = []
+    val_ave_L_data2_losses = []
+    val_ave_L_cgan1_losses = []
+    val_ave_D1_losses = []
+    val_ave_G1_adv_losses = []
+    val_ave_L_cgan2_losses = []
+    val_ave_D2_losses = []
+    val_ave_G2_adv_losses = []
+
 
     time_begin = str(datetime.now()).replace(' ', '-')
     path = '/work/LAS/jannesar-lab/mburke/SegEdgeGAN/saved/' + time_begin + '/'
@@ -240,36 +255,53 @@ def single_gpu_train():
                         optimizer_g.step()
 
                     # store finer points for graphing training
-                    # if iters % 25 == 0:
-                    #     # loss on each item is good enough sample to graph, but could also add average loss for epoch
-                    #     print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
-                    #     epochs.append(epoch)
-                    #     iou_scores.append(iou_score)
-                    #     total_losses.append(loss.item())
-                    #
-                    #     D_losses.append(D_loss.item())
-                    #     G_losses.append(G_loss.item())
-                    #
-                    #     L_data1_losses.append(L_data1.item())
-                    #     L_data2_losses.append(L_data2.item())
-                    #     L_cgan1_losses.append(L_cgan1.item())
-                    #     D1_losses.append(D1_loss.item())
-                    #     G1_adv_losses.append(G1_adv_loss.item())
-                    #     L_cgan2_losses.append(L_cgan2.item())
-                    #     D2_losses.append(D2_loss.item())
-                    #     G2_adv_losses.append(G2_adv_loss.item())
-                    # iters += 1
+                    if iters % 25 == 0:
+                        # loss on each item is good enough sample to graph, but could also add average loss for epoch
+                        print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
+                        epochs.append(epoch)
+                        iou_scores.append(iou_score)
+                        total_losses.append(loss.item())
+                        D_losses.append(D_loss.item())
+                        G_losses.append(G_loss.item())
+                        L_data1_losses.append(L_data1.item())
+                        L_data2_losses.append(L_data2.item())
+                        L_cgan1_losses.append(L_cgan1.item())
+                        D1_losses.append(D1_loss.item())
+                        G1_adv_losses.append(G1_adv_loss.item())
+                        L_cgan2_losses.append(L_cgan2.item())
+                        D2_losses.append(D2_loss.item())
+                        G2_adv_losses.append(G2_adv_loss.item())
+
+                elif mode == 'val':
+                    if iters % 25 == 0:
+                        # loss on each item is good enough sample to graph, but could also add average loss for epoch
+                        print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
+                        val_epochs.append(epoch)
+                        val_iou_scores.append(iou_score)
+                        val_total_losses.append(loss.item())
+                        val_D_losses.append(D_loss.item())
+                        val_G_losses.append(G_loss.item())
+                        val_L_data1_losses.append(L_data1.item())
+                        val_L_data2_losses.append(L_data2.item())
+                        val_L_cgan1_losses.append(L_cgan1.item())
+                        val_D1_losses.append(D1_loss.item())
+                        val_G1_adv_losses.append(G1_adv_loss.item())
+                        val_L_cgan2_losses.append(L_cgan2.item())
+                        val_D2_losses.append(D2_loss.item())
+                        val_G2_adv_losses.append(G2_adv_loss.item())
+
+                iters += 1
 
             # we've completed one epoch
             # save losses and iou every epoch for graphing
             if mode == 'train':
                 # save every 25 iterations points
-                # df = pd.DataFrame(list(zip(*[epochs, iou_scores, total_losses, D_losses, G_losses, L_data1_losses,
-                #                              L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses,
-                #                              D2_losses, G2_adv_losses]))).add_prefix('Col')
-                # filename = path + 'G1D1G2D2_e' + str(epoch) + '_' + time_begin + '.csv'
-                # print('saving to', filename)
-                # df.to_csv(filename, index=False)
+                df = pd.DataFrame(list(zip(*[epochs, iou_scores, total_losses, D_losses, G_losses, L_data1_losses,
+                                             L_data2_losses, L_cgan1_losses, D1_losses, G1_adv_losses, L_cgan2_losses,
+                                             D2_losses, G2_adv_losses]))).add_prefix('Col')
+                filename = path + 'G1D1G2D2_e' + str(epoch) + '_' + time_begin + '.csv'
+                print('saving to', filename)
+                df.to_csv(filename, index=False)
 
                 # save averages per epoch
                 ave_epochs.append(epoch)
@@ -298,29 +330,35 @@ def single_gpu_train():
 
             elif mode == 'val':
                 # not important to gather samples every 25 iterations since networks not updating
+                # save every 25 iterations points
+                df = pd.DataFrame(list(zip(*[val_epochs, val_iou_scores, val_total_losses, val_D_losses, val_G_losses, val_L_data1_losses,
+                                             val_L_data2_losses, val_L_cgan1_losses, val_D1_losses, val_G1_adv_losses, val_L_cgan2_losses,
+                                             val_D2_losses, val_G2_adv_losses]))).add_prefix('Col')
+                filename = path + 'G1D1G2D2_val_e' + str(epoch) + '_' + time_begin + '.csv'
+                print('saving to', filename)
+                df.to_csv(filename, index=False)
+
                 # save averages per epoch
-                val_epochs.append(epoch)
-                val_iou_scores.append(run_iou_score / len(val_data_loader))
-                val_total_losses.append(run_loss / len(val_data_loader))
-
-                val_D_losses.append(run_D_loss / len(val_data_loader))
-                val_G_losses.append(run_G_loss / len(val_data_loader))
-
-                val_L_data1_losses.append(run_L_data1 / len(val_data_loader))
-                val_L_data2_losses.append(run_L_data2 / len(val_data_loader))
-                val_L_cgan1_losses.append(run_L_cgan1 / len(val_data_loader))
-                val_D1_losses.append(run_D1_loss / len(val_data_loader))
-                val_G1_adv_losses.append(run_G1_adv_loss / len(val_data_loader))
-                val_L_cgan2_losses.append(run_L_cgan2 / len(val_data_loader))
-                val_D2_losses.append(run_D2_loss / len(val_data_loader))
-                val_G2_adv_losses.append(run_G2_adv_loss / len(val_data_loader))
+                val_ave_epochs.append(epoch)
+                val_ave_iou_scores.append(run_iou_score / len(val_data_loader))
+                val_ave_total_losses.append(run_loss / len(val_data_loader))
+                val_ave_D_losses.append(run_D_loss / len(val_data_loader))
+                val_ave_G_losses.append(run_G_loss / len(val_data_loader))
+                val_ave_L_data1_losses.append(run_L_data1 / len(val_data_loader))
+                val_ave_L_data2_losses.append(run_L_data2 / len(val_data_loader))
+                val_ave_L_cgan1_losses.append(run_L_cgan1 / len(val_data_loader))
+                val_ave_D1_losses.append(run_D1_loss / len(val_data_loader))
+                val_ave_G1_adv_losses.append(run_G1_adv_loss / len(val_data_loader))
+                val_ave_L_cgan2_losses.append(run_L_cgan2 / len(val_data_loader))
+                val_ave_D2_losses.append(run_D2_loss / len(val_data_loader))
+                val_ave_G2_adv_losses.append(run_G2_adv_loss / len(val_data_loader))
 
                 # saves lists of average (per epoch) losses
                 df = pd.DataFrame(list(zip(
-                    *[val_epochs, val_iou_scores, val_total_losses, val_D_losses, val_G_losses, val_L_data1_losses,
-                      val_L_data2_losses, val_L_cgan1_losses, val_D1_losses, val_G1_adv_losses, val_L_cgan2_losses,
-                      val_D2_losses, val_G2_adv_losses]))).add_prefix('Col')
-                filename = path + 'G1D1G2D2_val_e' + str(epoch) + '_' + time_begin + '.csv'
+                    *[val_ave_epochs, val_ave_iou_scores, val_ave_total_losses, val_ave_D_losses, val_ave_G_losses, val_ave_L_data1_losses,
+                      val_ave_L_data2_losses, val_ave_L_cgan1_losses, val_ave_D1_losses, val_ave_G1_adv_losses, val_ave_L_cgan2_losses,
+                      val_ave_D2_losses, val_ave_G2_adv_losses]))).add_prefix('Col')
+                filename = path + 'G1D1G2D2_val_ave_e' + str(epoch) + '_' + time_begin + '.csv'
                 print('saving to', filename)
                 df.to_csv(filename, index=False)
                 del(df)
