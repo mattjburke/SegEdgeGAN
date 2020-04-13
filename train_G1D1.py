@@ -294,7 +294,7 @@ def single_gpu_train_G1D1():
                 # save every 25 iterations points
                 df = pd.DataFrame(list(zip(*[epochs, iou_scores, D_losses, G_losses, L_data1_losses,
                                              L_cgan1_losses, D1_losses, G1_adv_losses]))).add_prefix('Col')
-                filename = path + 'G1D1G2D2_e' + str(epoch) + '_' + time_begin + '.csv'
+                filename = path + 'G1D1_e' + str(epoch) + '_' + time_begin + '.csv'
                 print('saving to', filename)
                 df.to_csv(filename, index=False)
 
@@ -317,7 +317,7 @@ def single_gpu_train_G1D1():
                 df = pd.DataFrame(list(zip(
                     *[ave_epochs, ave_iou_scores, ave_D_losses, ave_G_losses, ave_L_data1_losses,
                       ave_L_cgan1_losses, ave_D1_losses, ave_G1_adv_losses]))).add_prefix('Col')
-                filename = path + 'G1D1G2D2_ave_e' + str(epoch) + '_' + time_begin + '.csv'
+                filename = path + 'G1D1_ave_e' + str(epoch) + '_' + time_begin + '.csv'
                 print('saving to', filename)
                 df.to_csv(filename, index=False)
                 del(df)
@@ -327,7 +327,7 @@ def single_gpu_train_G1D1():
                 # save every 25 iterations points
                 df = pd.DataFrame(list(zip(*[val_epochs, val_iou_scores, val_D_losses, val_G_losses, val_L_data1_losses,
                                              val_L_cgan1_losses, val_D1_losses, val_G1_adv_losses]))).add_prefix('Col')
-                filename = path + 'G1D1G2D2_val_e' + str(epoch) + '_' + time_begin + '.csv'
+                filename = path + 'G1D1_val_e' + str(epoch) + '_' + time_begin + '.csv'
                 print('saving to', filename)
                 df.to_csv(filename, index=False)
 
@@ -350,7 +350,7 @@ def single_gpu_train_G1D1():
                 df = pd.DataFrame(list(zip(
                     *[val_ave_epochs, val_ave_iou_scores, val_ave_D_losses, val_ave_G_losses, val_ave_L_data1_losses,
                       val_ave_L_cgan1_losses, val_ave_D1_losses, val_ave_G1_adv_losses]))).add_prefix('Col')
-                filename = path + 'G1D1G2D2_val_ave_e' + str(epoch) + '_' + time_begin + '.csv'
+                filename = path + 'G1D1_val_ave_e' + str(epoch) + '_' + time_begin + '.csv'
                 print('saving to', filename)
                 df.to_csv(filename, index=False)
                 del(df)
