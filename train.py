@@ -151,7 +151,7 @@ def single_gpu_train():
                 g1_output = G1(original_image)
                 # measures how well G1 predicted segmentation map
                 L_data1 = criterion_g_data(torch.log(g1_output), seg_gt_flat)  # log of softmax values produces input of [-inf, 0] for NLLoss
-                del(seg_gt_flat)
+                # del(seg_gt_flat)
 
                 # Intersection over Union is measure of segmentation map accuracy
                 iou_score = iou(g1_output, seg_gt)  # what we ultimately want to improve
@@ -159,11 +159,12 @@ def single_gpu_train():
                 # prepare FAKE/generated and REAL/ground truth input for D1
                 g1_pred_cat = torch.cat((original_image, g1_output), 1).to(device)  # FAKE
                 g1_gt_cat = torch.cat((original_image, seg_gt), 1).to(device)  # REAL
-                del(original_image)
+                # del(original_image)
 
                 # predict probability that input is FAKE or REAL with D1
-                prob_g1_gt = D1(g1_gt_cat)  # good D1 would predict REAL
-                prob_g1_pred = D1(g1_pred_cat)  # good D1 would predict FAKE
+                prob_g1_gt = D1(g1_gt_cat.detach())  # good D1 would predict REAL
+                prob_g1_pred = D1(g1_pred_cat.detach())  # good D1 would predict FAKE
+                prob_g1_pred_adv = D1(g1_pred_cat)  # good D1 would predict FAKE, NOT detached
 
                 # get tensors of labels to compute loss for D1
                 REAL_t = torch.full((prob_g1_gt.shape), REAL, device=device)  # tensor of REAL labels
@@ -171,11 +172,11 @@ def single_gpu_train():
 
                 # D1 tries to accurately predict FAKE or REAL (ing + seg), but this gets harder as G1 improves
                 D1_loss = criterion_d(prob_g1_pred, FAKE_t) + criterion_d(prob_g1_gt, REAL_t)
-                del(prob_g1_gt)
+                # del(prob_g1_gt)
 
                 # G1 should produce output that D1 thinks is REAL. G1_adv_loss updates G1 params to improve G1
-                G1_adv_loss = criterion_d(prob_g1_pred, REAL_t)
-                del(prob_g1_pred)
+                G1_adv_loss = criterion_d(prob_g1_pred_adv, REAL_t)
+                # del(prob_g1_pred)
                 # L_cgan(G1, D1) = D1_loss + G1_adv_loss
                 L_cgan1 = D1_loss + G1_adv_loss
 
@@ -188,14 +189,14 @@ def single_gpu_train():
 
                 # find edges where G1 prediction does not match with ground truth
                 seg_edges_gt = get_edges(g1_output, seg_gt).to(device)  # to(device)? new tensor created outside of model
-                del (seg_gt)
-                del (g1_output)
+                # del (seg_gt)
+                # del (g1_output)
                 # reformat for BCELoss input
                 seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long().to(device)
 
                 # measure how well G2 predicted edges
                 L_data2 = criterion_g_data(torch.log(g2_output), seg_edges_gt_flat)  #L_data2(G2|G1)
-                del(seg_edges_gt_flat)
+                # del(seg_edges_gt_flat)
 
                 # we want the d2 loss to capture the higher-order properties of the edges (that they are connected units)
                 # this is done by comparing real (coherent parts) edges and fake (possibly fuzzy or scattered/inconsistent)
@@ -206,17 +207,18 @@ def single_gpu_train():
                 g2_pred_cat = torch.cat((g1_pred_cat, g2_output), 1).to(device)  # FAKE
 
                 # predict the probability that input is REAL or FAKE with D2
-                prob_g2_gt = D2(g2_gt_cat)  # good D2 would predict REAL
-                prob_g2_pred = D2(g2_pred_cat)  # good D2 would predict FAKE
+                prob_g2_gt = D2(g2_gt_cat.detach())  # good D2 would predict REAL
+                prob_g2_pred = D2(g2_pred_cat.detach())  # good D2 would predict FAKE
+                prob_g2_pred_adv = D2(g2_pred_cat)  # good D2 would predict FAKE, NOT detached to carry gradient to G2
 
                 # measure how well D2 predicts REAL or FAKE
                 D2_loss = criterion_d(prob_g2_pred, FAKE_t) + criterion_d(prob_g2_gt, REAL_t)
                 # we want G2 to produce output that D2 thinks is REAL
-                G2_adv_loss = criterion_d(prob_g2_pred, REAL_t)
-                del(prob_g2_pred)
-                del(prob_g2_gt)
-                del(FAKE_t)
-                del(REAL_t)
+                G2_adv_loss = criterion_d(prob_g2_pred_adv, REAL_t)
+                # del(prob_g2_pred)
+                # del(prob_g2_gt)
+                # del(FAKE_t)
+                # del(REAL_t)
                 L_cgan2 = D2_loss + G2_adv_loss
 
                 # lambda1 = 5, lambda2 = 0.1, lambda3 = 0.1 in paper (set at top)
@@ -240,17 +242,17 @@ def single_gpu_train():
                 run_G2_adv_loss += G2_adv_loss.item()
 
                 if mode == 'train':
-                    if epoch % 6 < 3:
-                        optimizer_g.zero_grad()
+                    if epoch % 2 < 1:
+                        # optimizer_g.zero_grad()
                         optimizer_d.zero_grad()  # clears previous gradients (from previous loss.backward() calls)
-                        # loss.backward()  # computes derivatives of loss (aka gradients)
-                        D_loss.backward()
+                        loss.backward()  # computes derivatives of loss (aka gradients)
+                        # D_loss.backward()
                         optimizer_d.step()  # adjusts model parameters based on gradients
                     else:
-                        optimizer_d.zero_grad()  # clear both to prevent buildup
+                        # optimizer_d.zero_grad()  # clear both to prevent buildup? as long as zero_grad before step, doesn't matter
                         optimizer_g.zero_grad()
-                        # loss.backward()
-                        G_loss.backward()
+                        loss.backward()
+                        # G_loss.backward()
                         optimizer_g.step()
 
                     # store finer points for graphing training
