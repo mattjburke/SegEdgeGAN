@@ -22,14 +22,16 @@ lambda3 = 0.1
 
 
 def single_gpu_train():
-    sampler50 = torch.utils.data.SubsetRandomSampler(range(0, 50))
+    # sampler50 = torch.utils.data.SubsetRandomSampler(range(0, 50))
     train_dataset = CityscapesLoader('train')
+    train_sampler = torch.utils.data.RandomSampler(train_dataset)
     # train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
-    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler50)
+    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=train_sampler)
 
     val_dataset = CityscapesLoader('val')
+    val_sampler = torch.utils.data.RandomSampler(val_dataset)
     # val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE)
-    val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE, sampler=sampler50)
+    val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE, sampler=val_sampler)
 
     G1 = Generator_first().to(device)  # .cuda(0)  # nn.DataParallel? use parllel.DistributedDataParallel?
     G2 = Generator_second().to(device)  # .cuda(0)

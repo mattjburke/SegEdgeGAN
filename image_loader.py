@@ -126,11 +126,12 @@ def iou(outputs: torch.Tensor, labels: torch.Tensor):
     height = list(outputs.shape)[1]
     width = list(outputs.shape)[2]
     # 35 classes: 0-33 and -1
-    top_pred = torch.zeros(35, height, width)
+    top_pred = torch.zeros(35, height, width).cuda()
     for chan in range(0, 34):
         top_pred[chan, :, :] = outputs[0, :, :] == chan
 
     labels = labels.int()
+    top_pred = top_pred.int()
     # You can comment out this line if you are passing tensors of equal shape
     # But if you are passing output from UNet or something it will most probably
     # be with the BATCH x 1 x H x W shape
