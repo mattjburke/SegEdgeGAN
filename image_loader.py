@@ -121,7 +121,15 @@ def get_edges2(pred_seg, gt_seg):
 
 # intersection over union assuming both tensors are [BATCH_SIZE, classes, h, w]
 def iou(outputs: torch.Tensor, labels: torch.Tensor):
-    outputs = outputs.round().int()  # convert to 0s and 1s instead of probabilities
+    # outputs = outputs.round().int()  # convert to 0s and 1s instead of probabilities, gets more than just max
+    outputs = outputs.argmax(dim=1)  # dim is classes
+    height = list(outputs.shape)[1]
+    width = list(outputs.shape)[2]
+    # 35 classes: 0-33 and -1
+    top_pred = torch.zeros(35, height, width)
+    for chan in range(0, 34):
+        top_pred[chan, :, :] = outputs[0, :, :] == chan
+
     labels = labels.int()
     # You can comment out this line if you are passing tensors of equal shape
     # But if you are passing output from UNet or something it will most probably
@@ -129,8 +137,8 @@ def iou(outputs: torch.Tensor, labels: torch.Tensor):
     # credit to https://www.kaggle.com/iezepov/fast-iou-scoring-metric-in-pytorch-and-numpy
     # outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
     SMOOTH = 1e-6
-    intersection = (outputs & labels).float().sum((2, 3))  # Will be zero if Truth=0 or Prediction=0
-    union = (outputs | labels).float().sum((2, 3))  # Will be zzero if both are 0
+    intersection = (top_pred & labels).float().sum((2, 3))  # Will be zero if Truth=0 or Prediction=0
+    union = (top_pred | labels).float().sum((2, 3))  # Will be zzero if both are 0
     iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
     # del(outputs)
     # del(labels)
