@@ -148,7 +148,8 @@ def single_gpu_train():
                 original_image, seg_gt = data
                 original_image = original_image.to(device)
                 seg_gt = seg_gt.to(device)
-                seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long().to(device)  # needed for NLLLoss
+                # seg_gt_flat = seg_gt.argmax(axis=1).squeeze(1).long().to(device)  # squeeze redundant?
+                seg_gt_flat = seg_gt.argmax(axis=1).long().to(device)  # needed for NLLLoss
 
                 # predict segmentation map with G1
                 g1_output = G1(original_image)
@@ -195,7 +196,7 @@ def single_gpu_train():
                 # del (seg_gt)
                 # del (g1_output)
                 # reformat for BCELoss input
-                seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).squeeze(1).long().to(device)
+                seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).long().to(device)  # squeeze doesn't do anything
 
                 # measure how well G2 predicted edges
                 L_data2 = criterion_g_data(torch.log(g2_output), seg_edges_gt_flat)  #L_data2(G2|G1)
