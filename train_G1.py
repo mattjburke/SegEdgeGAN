@@ -22,12 +22,15 @@ lambda3 = 0.1
 
 
 def single_gpu_train_G1():
-    sampler25 = torch.utils.data.SubsetRandomSampler(range(0, 25))
     train_dataset = CityscapesLoader('train')
-    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler25)
+    # train_sampler = torch.utils.data.RandomSampler(train_dataset)
+    sampler595 = torch.utils.data.SubsetRandomSampler(range(0, 595))  # 1/5 the 2975 train images
+    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler595)
 
     val_dataset = CityscapesLoader('val')
-    val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE, sampler=sampler25)
+    # val_sampler = torch.utils.data.RandomSampler(val_dataset)
+    sampler100 = torch.utils.data.SubsetRandomSampler(range(0, 100))  # 1/5 the 500 val images
+    val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE, sampler=sampler100)
 
     G1 = Generator_first().to(device)
 
@@ -336,7 +339,7 @@ def single_gpu_train_G1():
 
         # will use best model for test set
         # outside of modes since only needs to be done once per epoch
-        if epoch > 5:
+        if epoch > 0:
             generator1_model = os.path.join(path, "generator1_%d.pkl" % epoch)
             # generator2_model = os.path.join(path, "generator2_%d.pkl" % epoch)
             # discriminator1_model = os.path.join(path, "discriminator1_%d.pkl" % epoch)

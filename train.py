@@ -22,16 +22,15 @@ lambda3 = 1
 
 
 def single_gpu_train():
-    # sampler50 = torch.utils.data.SubsetRandomSampler(range(0, 50))
     train_dataset = CityscapesLoader('train')
-    train_sampler = torch.utils.data.RandomSampler(train_dataset)
-    # train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
-    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=train_sampler)
+    # train_sampler = torch.utils.data.RandomSampler(train_dataset)
+    sampler595 = torch.utils.data.SubsetRandomSampler(range(0, 595))  # 1/5 the 2975 train images
+    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler595)
 
     val_dataset = CityscapesLoader('val')
-    val_sampler = torch.utils.data.RandomSampler(val_dataset)
-    # val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE)
-    val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE, sampler=val_sampler)
+    # val_sampler = torch.utils.data.RandomSampler(val_dataset)
+    sampler100 = torch.utils.data.SubsetRandomSampler(range(0, 100))  # 1/5 the 500 val images
+    val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE, sampler=sampler100)
 
     G1 = Generator_first().to(device)  # .cuda(0)  # nn.DataParallel? use parllel.DistributedDataParallel?
     G2 = Generator_second().to(device)  # .cuda(0)
@@ -248,7 +247,7 @@ def single_gpu_train():
                 run_G2_adv_loss += G2_adv_loss.item()
 
                 if mode == 'train':
-                    if epoch % 4 < 2:
+                    if epoch % 2 < 1:
                         # optimizer_g.zero_grad()
                         optimizer_d.zero_grad()  # clears previous gradients (from previous loss.backward() calls)
                         loss.backward()  # computes derivatives of loss (aka gradients)
