@@ -16,9 +16,9 @@ FAKE = 0
 
 #hyperparam
 BATCH_SIZE = 1  # 4 gpus to use in parallel: can't since need synchronous execution? fix slurm script to request 4
-lambda1 = 5  #high due to L1Loss instead of BCELoss?
-lambda2 = 0.1
-lambda3 = 0.1
+lambda1 = 1  #high due to L1Loss instead of BCELoss?
+lambda2 = 1
+lambda3 = 1
 
 
 def single_gpu_train():
@@ -248,7 +248,7 @@ def single_gpu_train():
                 run_G2_adv_loss += G2_adv_loss.item()
 
                 if mode == 'train':
-                    if epoch % 2 < 1:
+                    if epoch % 4 < 2:
                         # optimizer_g.zero_grad()
                         optimizer_d.zero_grad()  # clears previous gradients (from previous loss.backward() calls)
                         loss.backward()  # computes derivatives of loss (aka gradients)
@@ -372,7 +372,7 @@ def single_gpu_train():
 
         # will use best model for test set
         # outside of modes since only needs to be done once per epoch
-        if epoch > 5:
+        if epoch > 0:
             generator1_model = os.path.join(path, "generator1_%d.pkl" % epoch)
             generator2_model = os.path.join(path, "generator2_%d.pkl" % epoch)
             discriminator1_model = os.path.join(path, "discriminator1_%d.pkl" % epoch)
