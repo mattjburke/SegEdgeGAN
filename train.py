@@ -46,7 +46,7 @@ def single_gpu_train():
     # img_seg_list = []  # store some samples to visually inspect progress
 
     # store sample every 25 iterations
-    iters = 0
+    # iters = 0
     epochs = []
     iou_scores = []
     total_losses = []
@@ -251,12 +251,12 @@ def single_gpu_train():
                     else:
                         # optimizer_d.zero_grad()  # clear both to prevent buildup? as long as zero_grad before step, doesn't matter
                         optimizer_g.zero_grad()
-                        loss.backward()
+                        loss.backward()  # clears graph for all computations to make loss
                         # G_loss.backward()
                         optimizer_g.step()
 
                     # store finer points for graphing training
-                    if iters % 25 == 0:
+                    if i % 25 == 0:
                         # loss on each item is good enough sample to graph, but could also add average loss for epoch
                         print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
                         epochs.append(epoch)
@@ -274,7 +274,7 @@ def single_gpu_train():
                         G2_adv_losses.append(G2_adv_loss.item())
 
                 elif mode == 'val':
-                    if iters % 25 == 0:
+                    if i % 25 == 0:
                         # loss on each item is good enough sample to graph, but could also add average loss for epoch
                         print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
                         val_epochs.append(epoch)
@@ -291,7 +291,7 @@ def single_gpu_train():
                         val_D2_losses.append(D2_loss.item())
                         val_G2_adv_losses.append(G2_adv_loss.item())
 
-                iters += 1
+                # iters += 1
 
             # we've completed one epoch
             # save losses and iou every epoch for graphing

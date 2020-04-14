@@ -22,11 +22,12 @@ lambda3 = 0.1
 
 
 def single_gpu_train_G1():
+    sampler25 = torch.utils.data.SubsetRandomSampler(range(0, 25))
     train_dataset = CityscapesLoader('train')
-    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE)
+    train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler25)
 
     val_dataset = CityscapesLoader('val')
-    val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE)
+    val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE, sampler=sampler25)
 
     G1 = Generator_first().to(device)
 
@@ -139,7 +140,7 @@ def single_gpu_train_G1():
                 g1_output = G1(original_image)
                 # measures how well G1 predicted segmentation map
                 L_data1 = criterion_g_data(torch.log(g1_output), seg_gt_flat)  # log of softmax values produces input of [-inf, 0] for NLLoss
-                del(seg_gt_flat)
+                # del(seg_gt_flat)
 
                 # Intersection over Union is measure of segmentation map accuracy
                 iou_score = iou(g1_output, seg_gt)  # what we ultimately want to improve
@@ -233,7 +234,7 @@ def single_gpu_train_G1():
                     optimizer_g.step()
 
                     # store finer points for graphing training
-                    if iters % 25 == 0:
+                    if i % 25 == 0:
                         # loss on each item is good enough sample to graph, but could also add average loss for epoch
                         # print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
                         epochs.append(epoch)
@@ -251,7 +252,7 @@ def single_gpu_train_G1():
                         # G2_adv_losses.append(G2_adv_loss.item())
 
                 elif mode == 'val':
-                    if iters % 25 == 0:
+                    if i % 25 == 0:
                         # loss on each item is good enough sample to graph, but could also add average loss for epoch
                         # print('Epoch: %d | iter: %d | train loss: %.10f' % (epoch, i, float(loss)))
                         val_epochs.append(epoch)
@@ -268,7 +269,7 @@ def single_gpu_train_G1():
                         # val_D2_losses.append(D2_loss.item())
                         # val_G2_adv_losses.append(G2_adv_loss.item())
 
-                iters += 1
+                # iters += 1
 
             # we've completed one epoch
             # save losses and iou every epoch for graphing
