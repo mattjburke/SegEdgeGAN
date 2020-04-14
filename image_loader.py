@@ -50,6 +50,12 @@ classes = [
     CityscapesClass('license plate', -1, -1, 'vehicle', 7, False, True, (0, 0, 142)),
 ]
 
+# map id to train_id, with 255 or -1 mapped to 19
+pixLabels = {0: 19, 1: 19, 2: 19, 3: 19, 4: 19, 5: 19, 6: 19, 7: 0, 8: 1, 9: 19,
+             10: 19, 11: 2, 12: 3, 13: 4, 14: 19, 15: 19, 16: 19, 17: 5, 18: 19,
+             19: 6, 20: 7, 21: 8, 22: 9, 23: 10, 24: 11, 25: 12, 26: 13,
+             27: 14, 28: 15, 29: 19, 30: 19, 31: 16, 32: 17, 33: 18, -1: 19}
+
 # print(classes[34][7][2])
 
 # define transforms
@@ -61,13 +67,23 @@ to_resized_tensor = transforms.Compose([resize_pil, to_t])
 
 def one_hot_transform(seg_tensor):
     seg_tensor[:, :, :] *= 255  # seg array is floats = category/255
+    print(seg_tensor[0])
+    # for x in seg_tensor:
+    #     print(x)
+    #     x = pixLabels[x]
+    #     print(x)
+    # print(seg_tensor[0])
     # seg_tensor[seg_tensor[:, :, :] == -1] = 34
     # assume -1 is fitered out? I think this is handled by dataloader
     height = list(seg_tensor.shape)[1]
     width = list(seg_tensor.shape)[2]
-    # 35 classes: 0-33 and -1
-    ret_tensor = torch.zeros(35, height, width)
-    for chan in range(0, 34):
+    for i in range(0, height):
+        for j in range(0, width):
+            seg_tensor[0][i][j] = pixLabels[int(seg_tensor[0][i][j])]  # possible rounding errors?
+    # 35 classes: 0-33 and -1  # only 19 classes used for training and eval
+    print(seg_tensor[0])
+    ret_tensor = torch.zeros(20, height, width)
+    for chan in range(0, 20):
         ret_tensor[chan, :, :] = seg_tensor[0, :, :] == chan
     # ret_tensor[34, :, :] = ((seg_tensor[0, :, :] == -1) or (seg_tensor[0, :, :] == 34))
     return ret_tensor
@@ -91,10 +107,11 @@ class CityscapesLoader(torch.utils.data.Dataset):
 
 
 # train_dataset = CityscapesLoader('train')
-# for i in range(0, 2):
+# for i in range(0, 1):
 #     img, seg = train_dataset[i]
-#     print(img)
-#     print(seg[7])
+#     # print(img)
+#     print(seg[0])
+
 
 
 # the higher-order representation of edges captured by network is different than simple L1Loss
@@ -125,9 +142,9 @@ def iou(outputs: torch.Tensor, labels: torch.Tensor):
     outputs = outputs.argmax(dim=1)  # dim is classes
     height = list(outputs.shape)[1]
     width = list(outputs.shape)[2]
-    # 35 classes: 0-33 and -1
-    top_pred = torch.zeros(35, height, width).cuda()
-    for chan in range(0, 34):
+    # 35 classes: 0-33 and -1  # class 20 not used in eval
+    top_pred = torch.zeros(19, height, width).cuda()
+    for chan in range(0, 19):
         top_pred[chan, :, :] = outputs[0, :, :] == chan
 
     labels = labels.int()
