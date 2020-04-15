@@ -37,7 +37,8 @@ def single_gpu_train():
     D1 = Discriminator_first().to(device)  # .cuda(1)
     D2 = Discriminator_second().to(device)  # .cuda(1)
     criterion_d = torch.nn.BCELoss()
-    criterion_g_data = torch.nn.NLLLoss()  # since CrossEntopyLoss includes log_softmax
+    criterion_g1_data = torch.nn.NLLLoss()  # since CrossEntopyLoss includes log_softmax
+    criterion_g2_data = torch.L1Loss()
     # 2 optimizers used to update discriminators and generators in alternating fashion
     optimizer_d = torch.optim.Adam([
         {'params': D1.parameters()},
@@ -155,7 +156,7 @@ def single_gpu_train():
                 # predict segmentation map with G1
                 g1_output = G1(original_image)
                 # measures how well G1 predicted segmentation map
-                L_data1 = criterion_g_data(torch.log(g1_output), seg_gt_flat)  # log of softmax values produces input of [-inf, 0] for NLLoss
+                L_data1 = criterion_g1_data(torch.log(g1_output), seg_gt_flat)  # log of softmax values produces input of [-inf, 0] for NLLoss
                 # del(seg_gt_flat)
 
                 # Intersection over Union is measure of segmentation map accuracy
@@ -197,10 +198,10 @@ def single_gpu_train():
                 # del (seg_gt)
                 # del (g1_output)
                 # reformat for BCELoss input
-                seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).long().to(device)  # squeeze doesn't do anything
+                # seg_edges_gt_flat = seg_edges_gt.argmax(dim=1).long().to(device)  # squeeze doesn't do anything
 
                 # measure how well G2 predicted edges
-                L_data2 = criterion_g_data(torch.log(g2_output), seg_edges_gt_flat)  #L_data2(G2|G1)
+                L_data2 = criterion_g2_data(g2_output, seg_edges_gt)  #L_data2(G2|G1)
                 # del(seg_edges_gt_flat)
 
                 # we want the d2 loss to capture the higher-order properties of the edges (that they are connected units)

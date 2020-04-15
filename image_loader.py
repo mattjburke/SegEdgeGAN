@@ -120,7 +120,8 @@ def get_edges(pred_seg, gt_seg):
     # a mismatched edge will have 1s in the channel that is the gt, and -1s in the channel that was predicted
     # softmax predicts one channel only to put positive 1 in
     # remove negative values only
-    edge_tensor = torch.nn.functional.relu(edge_tensor, inplace=False)  # inplace=True would be faster? default False
+    # edge_tensor = torch.nn.functional.relu(edge_tensor, inplace=False)  # inplace=True would be faster? default False
+    # use tanh instead of softmax to predict both 1s and -1s
     return edge_tensor
 
 
