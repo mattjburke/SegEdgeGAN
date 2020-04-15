@@ -137,34 +137,33 @@ def get_edges2(pred_seg, gt_seg):
 
 
 # intersection over union assuming both tensors are [BATCH_SIZE, classes, h, w]
-def iou(outputs: torch.Tensor, labels: torch.Tensor):
-    # outputs = outputs.round().int()  # convert to 0s and 1s instead of probabilities, gets more than just max
-    outputs = outputs.argmax(dim=1)  # dim is classes
-    height = list(outputs.shape)[1]
-    width = list(outputs.shape)[2]
-    # 35 classes: 0-33 and -1  # class 20 not used in eval
-    top_pred = torch.zeros(19, height, width).cuda()
+def iou(outputs: torch.Tensor, labels: torch.Tensor, batch_size=1):
+    outputs = outputs.argmax(dim=1, keepdim=True)  # dim is classes
+    height = list(outputs.shape)[2]
+    width = list(outputs.shape)[3]
+    # class 20 not used in eval, so copy first 19 channels to new tensor
+    top_pred = torch.zeros(batch_size, 19, height, width).cuda()  # assume batch size 1
+    labels_19 = torch.zeros(batch_size, 19, height, width).cuda()
     for chan in range(0, 19):
-        top_pred[chan, :, :] = outputs[0, :, :] == chan
+        top_pred[:, chan, :, :] = outputs[:, 0, :, :] == chan
+        labels_19[:, chan, :, :] = labels[:, chan, :, :]
 
-    labels = labels.int()
+    labels_19 = labels_19.int()
     top_pred = top_pred.int()
-    # You can comment out this line if you are passing tensors of equal shape
-    # But if you are passing output from UNet or something it will most probably
-    # be with the BATCH x 1 x H x W shape
-    # credit to https://www.kaggle.com/iezepov/fast-iou-scoring-metric-in-pytorch-and-numpy
-    # outputs = outputs.squeeze(1)  # BATCH x 1 x H x W => BATCH x H x W
     SMOOTH = 1e-6
-    intersection = (top_pred & labels).float().sum((2, 3))  # Will be zero if Truth=0 or Prediction=0
-    union = (top_pred | labels).float().sum((2, 3))  # Will be zzero if both are 0
+    intersection = torch.mul(top_pred, labels_19).int().sum((2, 3))  # both 1 -> 1
+    union = intersection + torch.logical_xor(top_pred, labels_19).int().sum((2, 3))  # 1 in either -> 1
     iou = (intersection + SMOOTH) / (union + SMOOTH)  # We smooth our devision to avoid 0/0
-    # del(outputs)
-    # del(labels)
     # iou is score for every class in every batch
     # thresholded = torch.clamp(20 * (iou - 0.5), 0, 10).ceil() / 10  # This is equal to comparing with thresolds
-    ret = iou.mean().item()
-    # del iou
-    return ret  # Or thresholded.mean() if you are interested in average across the batch
+    ret = iou.mean().item()  # averages across whole batch
+    return ret
+
+# o = torch.randn([1, 20, 2, 3]).abs()
+# l = torch.randn([1, 20, 2, 3]).int().abs()
+# print(l.shape)
+# print(iou(o, l))
+# print(l.shape)
 
 
 # seg is [classes, h, w]
