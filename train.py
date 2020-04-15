@@ -16,7 +16,7 @@ FAKE = 0
 
 #hyperparam
 BATCH_SIZE = 1  # 4 gpus to use in parallel: can't since need synchronous execution? fix slurm script to request 4
-lambda1 = 1  #high due to L1Loss instead of BCELoss?
+lambda1 = 1  # make higher due to L1Loss being small when most are 0s?
 lambda2 = 1
 lambda3 = 1
 
@@ -24,11 +24,14 @@ lambda3 = 1
 def single_gpu_train():
     train_dataset = CityscapesLoader('train')
     # train_sampler = torch.utils.data.RandomSampler(train_dataset)
+    # train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=train_sampler)
     sampler595 = torch.utils.data.SubsetRandomSampler(range(0, 595))  # 1/5 the 2975 train images
     train_data_loader = Data.DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=sampler595)
 
+
     val_dataset = CityscapesLoader('val')
     # val_sampler = torch.utils.data.RandomSampler(val_dataset)
+    # val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE, sampler=val_sampler)
     sampler100 = torch.utils.data.SubsetRandomSampler(range(0, 100))  # 1/5 the 500 val images
     val_data_loader = Data.DataLoader(val_dataset, batch_size=BATCH_SIZE, sampler=sampler100)
 
