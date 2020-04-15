@@ -41,7 +41,7 @@ def single_gpu_train():
     D2 = Discriminator_second().to(device)  # .cuda(1)
     criterion_d = torch.nn.BCELoss()
     criterion_g1_data = torch.nn.NLLLoss()  # since CrossEntopyLoss includes log_softmax
-    criterion_g2_data = torch.L1Loss()
+    criterion_g2_data = torch.nn.L1Loss()
     # 2 optimizers used to update discriminators and generators in alternating fashion
     optimizer_d = torch.optim.Adam([
         {'params': D1.parameters()},

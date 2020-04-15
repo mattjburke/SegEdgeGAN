@@ -158,7 +158,7 @@ class Generator_second(nn.Module):
         )
         self.convt11 = nn.Sequential(
             nn.ConvTranspose2d(128, 20, 3, 1, 1),  # edges tensor is same shape as segmentation map
-            nn.nn.Tanh()  # want to predict 1 or -1
+            nn.Tanh()  # want to predict 1 or -1
         )
         self._initialize_weights()
 
