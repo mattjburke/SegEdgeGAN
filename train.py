@@ -16,9 +16,9 @@ FAKE = 0
 
 #hyperparam
 BATCH_SIZE = 1  # 4 gpus to use in parallel: can't since need synchronous execution? fix slurm script to request 4
-lambda1 = 1  # make higher due to L1Loss being small when most are 0s?
+lambda1 = 10  # make higher due to L1Loss being small when most are 0s?
 lambda2 = 1
-lambda3 = 1
+lambda3 = 6
 
 
 def single_gpu_train():
@@ -221,7 +221,7 @@ def single_gpu_train():
                 prob_g2_pred_adv = D2(g2_pred_cat)  # good D2 would predict FAKE, NOT detached to carry gradient to G2
 
                 # measure how well D2 predicts REAL or FAKE
-                D2_loss = criterion_d(prob_g2_pred, FAKE_t) + criterion_d(prob_g2_gt, REAL_t)
+                D2_loss = 0.5 * (criterion_d(prob_g2_pred, FAKE_t) + criterion_d(prob_g2_gt, REAL_t))
                 # we want G2 to produce output that D2 thinks is REAL
                 G2_adv_loss = criterion_d(prob_g2_pred_adv, REAL_t)
                 # del(prob_g2_pred)
