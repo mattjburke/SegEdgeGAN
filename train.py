@@ -251,7 +251,9 @@ def single_gpu_train():
                 run_G2_adv_loss += G2_adv_loss.item()
 
                 if mode == 'train':
-                    if epoch % 2 < 1:
+                    fifth = i / 595
+                    fifths_135 = (fifth < 1) or (fifth > 2 and fifth < 3) or (fifth > 4)
+                    if ((epoch % 2 < 1) and fifths_135) or ((epoch % 2 == 1) and (not fifths_135)):
                         # optimizer_g.zero_grad()
                         optimizer_d.zero_grad()  # clears previous gradients (from previous loss.backward() calls)
                         loss.backward()  # computes derivatives of loss (aka gradients)
