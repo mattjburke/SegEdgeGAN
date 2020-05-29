@@ -1,2 +1,2 @@
 # SegEdgeGAN
-A stacked gan to improve image segmentation
+This is the code that accompanies my MS thesis, "Stacked generative adversarial networks for learning additional features of image segmentation maps". See the PDF for details of the experiment. To rerun the experiments, you will need to download the Cityscapes gtFine dataset from https://www.cityscapes-dataset.com/ and place it in a folder named "data". The two models compared in the experiment were a baseline model with one generator and one discriminator, which can be run with train_G1D1.py, and a model with two generators and two discriminators, which can be run with train.py.
